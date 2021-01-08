@@ -1,0 +1,9 @@
+Cirurgia (c),Prioridade (p),Dias_espera (w),Especialidade (e),Cirurgião (h),Duração (tc)
+1,1,1,1,1,5
+2,1,1,1,1,13
+3,1,1,1,2,8
+4,1,1,1,2,11
+5,2,20,2,3,10
+6,3,9,2,4,14
+7,2,8,2,3,11
+8,3,5,2,4,5
