@@ -4,6 +4,7 @@ pub type Speciality = u32;
 pub type Priority = usize;
 pub type DaysWaiting = u32;
 
+use super::surgeon::SurgeonID;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -13,7 +14,7 @@ pub struct Surgery {
     pub days_waiting: DaysWaiting,
     pub priority: Priority,
     pub speciality: Speciality,
-    pub surgeon_id: usize,
+    pub surgeon_id: SurgeonID,
 }
 
 impl Hash for Surgery {

@@ -16,8 +16,8 @@ fn main() {
 
     Solver::solve(
         "./sample_data/1_inst.csv",
-        5,
-        5,
+        1,
+        1,
         max_days_waiting,
         priority_penalties,
         1000,

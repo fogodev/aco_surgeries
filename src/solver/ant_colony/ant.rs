@@ -1,23 +1,24 @@
-use crate::solver::room::Room;
-use crate::solver::surgeon::{Surgeon, SurgeonID};
-use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::prelude::SliceRandom;
 use rand::rngs::ThreadRng;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::solver::room::room_specs_for_day::RoomSpecsForDay;
+use crate::solver::surgeon::SurgeonID;
+use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
+use crate::solver::week::Week;
 
 pub struct Ant {
     path: Vec<(Surgery, Surgery)>,
+    rooms_count: usize,
     surgeries_bin: HashSet<Surgery>,
-    surgeons: HashMap<SurgeonID, Surgeon>,
-    rooms: Vec<Room>,
+    surgeons_ids: Arc<Vec<SurgeonID>>,
+    current_week: Option<Week>,
+    past_weeks: Vec<Week>,
     visited_surgeries: HashSet<Surgery>,
     current_surgery: Option<Surgery>,
-    max_days_waiting: Rc<HashMap<Priority, DaysWaiting>>,
-    priority_penalties: Rc<HashMap<Priority, u32>>,
+    max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
+    priority_penalties: Arc<HashMap<Priority, u32>>,
     random_number_generator: ThreadRng,
 }
 
@@ -25,15 +26,17 @@ impl Ant {
     pub fn new(
         rooms_count: usize,
         surgeries_bin: HashSet<Surgery>,
-        surgeons_ids: &[SurgeonID],
-        max_days_waiting: Rc<HashMap<Priority, DaysWaiting>>,
-        priority_penalties: Rc<HashMap<Priority, u32>>,
+        surgeons_ids: Arc<Vec<SurgeonID>>,
+        max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
+        priority_penalties: Arc<HashMap<Priority, u32>>,
     ) -> Self {
         Self {
             path: Default::default(),
+            rooms_count,
             surgeries_bin,
-            surgeons: Surgeon::from_ids(surgeons_ids),
-            rooms: (0..rooms_count).map(|_| Room::new()).collect(),
+            surgeons_ids: surgeons_ids.clone(),
+            current_week: Some(Week::new(rooms_count, surgeons_ids.clone())),
+            past_weeks: vec![],
             visited_surgeries: Default::default(),
             current_surgery: None,
             max_days_waiting,
@@ -42,7 +45,34 @@ impl Ant {
         }
     }
 
-    pub fn choose_next_surgery(
+    fn choose_first_surgery(&mut self) {
+        let surgeries_and_weights = self
+            .surgeries_bin
+            .iter()
+            .map(|surgery| (surgery, if surgery.priority == 1 { 2.0 } else { 1.0 }))
+            .collect::<Vec<(&Surgery, f64)>>();
+
+        let dist = WeightedIndex::new(
+            surgeries_and_weights
+                .iter()
+                .map(|surgery_weight| surgery_weight.1),
+        )
+        .unwrap();
+
+        let chosen = surgeries_and_weights[dist.sample(&mut self.random_number_generator)]
+            .0
+            .clone();
+
+        if let Some(ref mut week) = self.current_week {
+            week.schedule_surgery(chosen.clone())
+        }
+
+        self.surgeries_bin.remove(&chosen);
+
+        self.current_surgery = Some(chosen)
+    }
+
+    fn choose_next_surgery(
         &mut self,
         alpha: f64,
         beta: f64,
@@ -51,59 +81,36 @@ impl Ant {
     ) {
         // First surgery for this ant
         if self.current_surgery.is_none() {
-            let surgeries_and_weights = self
-                .surgeries_bin
-                .iter()
-                .map(|surgery| (surgery, if surgery.priority == 1 { 2.0 } else { 1.0 }))
-                .collect::<Vec<(&Surgery, f64)>>();
-
-            let dist = WeightedIndex::new(
-                surgeries_and_weights
-                    .iter()
-                    .map(|surgery_weight| surgery_weight.1),
-            )
-            .unwrap();
-
-            let chosen = surgeries_and_weights[dist.sample(&mut self.random_number_generator)]
-                .0
-                .clone();
-
-            self.rooms[0].add_day(RoomSpecsForDay::new(1, chosen.clone()));
-            // Todo cirurgiões
-            self.surgeries_bin.remove(&chosen);
-
-            let surgeon = self.surgeons.get_mut(&chosen.surgeon_id).unwrap();
-            surgeon.allocate_to_surgery(&chosen, 1);
-
-            self.current_surgery = Some(chosen)
+            self.choose_first_surgery()
         } else {
             // All other surgeries
+            let mut current_week = self.current_week.take().unwrap();
+
+            let available_surgeries = current_week.filter_available_surgeries(&self.surgeries_bin);
 
             let current_surgery = self.current_surgery.take().unwrap();
-            let not_visited = self
-                .surgeries_bin
-                .difference(&self.visited_surgeries)
-                .collect::<HashSet<&Surgery>>();
 
-            let mut summation = 0.0;
-            for possible_next_surgery in not_visited.iter() {
-                if current_surgery != **possible_next_surgery {
-                    let key = (current_surgery.clone(), (*possible_next_surgery).clone());
+            let summation = available_surgeries
+                .iter()
+                .filter(|&surgery| current_surgery != *surgery)
+                .map(|surgery| {
+                    let key = (current_surgery.clone(), surgery.clone());
                     let pheromone = if pheromones.contains_key(&key) {
                         pheromones[&key]
                     } else {
                         // ToDo default value must decay by given round_number, check if this approach is ok
                         1.0 / round_number as f64
                     };
-                    summation += pheromone.powf(alpha); // ToDo use heuristic function here * heuristic.powf(beta);
-                }
-            }
+                    pheromone.powf(alpha) // ToDo use heuristic function here
+                                          // * heuristic.powf(beta)
+                })
+                .sum::<f64>();
 
-            let surgeries_probability = not_visited
+            let surgeries_probability = available_surgeries
                 .iter()
-                .filter(|&&possible_next_surgery| current_surgery != *possible_next_surgery)
-                .map(|&possible_next_surgery| {
-                    let key = (current_surgery.clone(), possible_next_surgery.clone());
+                .filter(|&surgery| current_surgery != *surgery)
+                .map(|surgery| {
+                    let key = (current_surgery.clone(), surgery.clone());
                     let pheromone = if pheromones.contains_key(&key) {
                         pheromones[&key]
                     } else {
@@ -114,7 +121,7 @@ impl Ant {
                     // let heuristic = heuristic_function(&current_surgery, possible_next_surgery);
 
                     (
-                        possible_next_surgery,
+                        surgery,
                         // ToDo change this, heuristic function can return negative numbers
                         pheromone.powf(alpha) // ToDo use heuristic function result here  
                             // * heuristic.powf(beta) 
@@ -132,15 +139,25 @@ impl Ant {
                 .clone();
 
             self.path.push((current_surgery, next_surgery.clone()));
+            current_week.schedule_surgery(next_surgery.clone());
+            self.surgeries_bin.remove(&next_surgery);
+            self.current_surgery = Some(next_surgery);
 
-            self.current_surgery = Some(next_surgery)
+            // If week is full, self.current_week will be a new week
+            if current_week.is_full(&self.surgeries_bin) {
+                self.past_weeks.push(current_week);
+                self.current_week = Some(Week::new(self.rooms_count, self.surgeons_ids.clone()))
+            } else {
+                // Otherwise, self.current_week remais the same current_week
+                self.current_week = Some(current_week);
+            }
         }
 
         self.visited_surgeries
             .insert(self.current_surgery.clone().unwrap().clone());
     }
 
-    pub fn calculate_objective_function(
+    fn calculate_objective_function(
         &self,
         max_days_waiting: &HashMap<Priority, DaysWaiting>,
         priority_penalties: &HashMap<Priority, u32>,
@@ -169,7 +186,21 @@ impl Ant {
         total_objective
     }
 
-    pub fn has_unallocated_surgeries(&self) -> bool {
-        !self.surgeries_bin.is_empty()
+    pub fn find_solution(
+        &mut self,
+        alpha: f64,
+        beta: f64,
+        pheromones: &HashMap<(Surgery, Surgery), f64>,
+        round_number: u32,
+    ) -> f64 {
+        while !self.surgeries_bin.is_empty() {
+            self.choose_next_surgery(alpha, beta, pheromones, round_number);
+        }
+
+        self.past_weeks.push(self.current_week.take().unwrap());
+
+        // ToDo calculate objective function
+        // self.past_weeks.iter().map(|week| week.calculate_objective_function()).sum::<f64>()
+        0.0
     }
 }

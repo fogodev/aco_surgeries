@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 pub mod ant_colony;
-pub mod room;
 pub mod surgeon;
 pub mod surgery;
+pub mod week;
 
 use crate::solver::surgery::Speciality;
 use ant_colony::AntColony;
@@ -43,7 +43,7 @@ impl Solver {
 
         let mut best_objective_function_result = 0.0;
         let mut best_objective_function_round = 0;
-        for round in 0..max_rounds_count {
+        for round in 1..(max_rounds_count + 1) {
             let (objective_function_result, elapsed_time) = solver.ant_colony.round(round);
             println!(
                 "Round: {}; Objective Function: {}; Elapsed Time: {:#?}",
