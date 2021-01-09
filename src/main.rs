@@ -5,6 +5,8 @@ use solver::Solver;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use num_cpus;
+
 fn main() {
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -15,29 +17,60 @@ fn main() {
         .cloned()
         .collect::<HashMap<Priority, DaysWaiting>>();
 
-    let mut total_duration = Duration::new(0, 0);
+    let cpus = num_cpus::get_physical();
+
+    println!("Running with {} ants in parallel;", cpus);
+
+    let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
     for _ in 0..5 {
         let (result, round, elapsed_time) = Solver::solve(
-            // "./sample_data/10_inst.csv",
-            "./sample_data/Indefinidas - i8.csv",
-            16,
-            2,
+            "./sample_data/Indefinidas - i7.csv",
+            cpus,
+            3,
             max_days_waiting.clone(),
             priority_penalties.clone(),
+            2.0,
             1.0,
             1.0,
-            1.0,
-            10.0,
+            10000.0,
             0.2,
             1000,
             500,
         );
-        total_duration += elapsed_time;
         println!(
             "Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
             result, round, elapsed_time
         );
+        results.push(result);
+        durations.push(elapsed_time)
     }
 
-    println!("Mean Elapsed Time: {:#?}", total_duration / 5)
+    let minimum_result = results.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+    let maximum_result = results.iter().fold(-f64::INFINITY, |a, &b| a.max(b));
+    results.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let median = results[2];
+
+    let results_mean = results.iter().sum::<f64>() / 5.0;
+    let durations_mean = durations.iter().sum::<Duration>() / 5;
+
+    println!(
+        "Minimum Result: {}; Maximum Result: {}; Median: {};\nMean Objective Function: {} ± {}; Mean Elapsed Time: {:#?} ± {:#?}s;",
+        minimum_result,
+        maximum_result,
+        median,
+        results_mean,
+        (results
+            .iter()
+            .fold(0.0, |sum, &value| sum + (value - results_mean).powi(2))
+            / 4.0)
+            .sqrt(),
+        durations_mean,
+        (durations
+            .iter()
+            .map(|duration| duration.as_secs_f64())
+            .fold(0.0, |sum, value| sum
+                + (value - durations_mean.as_secs_f64()).powi(2))
+            / 4.0)
+            .sqrt()
+    )
 }
