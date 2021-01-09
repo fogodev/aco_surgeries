@@ -24,7 +24,7 @@ fn main() {
     let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
     for _ in 0..5 {
         let (result, round, elapsed_time) = Solver::solve(
-            "./sample_data/Indefinidas - i7.csv",
+            "./sample_data/Indefinidas - i8.csv",
             cpus,
             3,
             max_days_waiting.clone(),
@@ -36,6 +36,7 @@ fn main() {
             0.2,
             1000,
             500,
+            false,
         );
         println!(
             "Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
@@ -44,11 +45,10 @@ fn main() {
         results.push(result);
         durations.push(elapsed_time)
     }
-
-    let minimum_result = results.iter().fold(f64::INFINITY, |a, &b| a.min(b));
-    let maximum_result = results.iter().fold(-f64::INFINITY, |a, &b| a.max(b));
     results.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let median = results[2];
+    let minimum_result = results[0];
+    let median_result = results[2];
+    let maximum_result = results[4];
 
     let results_mean = results.iter().sum::<f64>() / 5.0;
     let durations_mean = durations.iter().sum::<Duration>() / 5;
@@ -57,7 +57,7 @@ fn main() {
         "Minimum Result: {}; Maximum Result: {}; Median: {};\nMean Objective Function: {} ± {}; Mean Elapsed Time: {:#?} ± {:#?}s;",
         minimum_result,
         maximum_result,
-        median,
+        median_result,
         results_mean,
         (results
             .iter()

@@ -23,6 +23,7 @@ pub struct AntColony {
     surgeries_bin: HashSet<Surgery>,
     max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
     priority_penalties: Arc<HashMap<Priority, u32>>,
+    in_parallel: bool,
 }
 
 impl AntColony {
@@ -38,6 +39,7 @@ impl AntColony {
         surgeries_bin: HashSet<Surgery>,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
         priority_penalties: HashMap<Priority, u32>,
+        in_parallel: bool,
     ) -> Self {
         if surgeries_bin.is_empty() {
             panic!("Unable to solve for a empty set of surgeries!");
@@ -60,31 +62,54 @@ impl AntColony {
             surgeries_bin,
             max_days_waiting,
             priority_penalties,
+            in_parallel,
         }
     }
 
     pub fn round(&mut self, round_number: u32) -> (f64, Vec<(Week, f64)>, Duration) {
         let now = Instant::now();
 
-        let objective_function_results = (0..self.ants_count)
-            .into_par_iter()
-            .map(|_| {
-                Ant::new(
-                    self.rooms_count,
-                    self.surgeries_bin.clone(),
-                    self.surgeons_ids.clone(),
-                    self.max_days_waiting.clone(),
-                    self.priority_penalties.clone(),
-                )
-                .find_solution(
-                    self.alpha,
-                    self.beta,
-                    &self.pheromones,
-                    self.pheromone_evaporation_rate,
-                    round_number,
-                )
-            })
-            .collect::<Vec<_>>();
+        let objective_function_results = if self.in_parallel {
+            (0..self.ants_count)
+                .into_par_iter()
+                .map(|_| {
+                    Ant::new(
+                        self.rooms_count,
+                        self.surgeries_bin.clone(),
+                        self.surgeons_ids.clone(),
+                        self.max_days_waiting.clone(),
+                        self.priority_penalties.clone(),
+                    )
+                    .find_solution(
+                        self.alpha,
+                        self.beta,
+                        &self.pheromones,
+                        self.pheromone_evaporation_rate,
+                        round_number,
+                    )
+                })
+                .collect::<Vec<_>>()
+        } else {
+            (0..self.ants_count)
+                .into_iter()
+                .map(|_| {
+                    Ant::new(
+                        self.rooms_count,
+                        self.surgeries_bin.clone(),
+                        self.surgeons_ids.clone(),
+                        self.max_days_waiting.clone(),
+                        self.priority_penalties.clone(),
+                    )
+                    .find_solution(
+                        self.alpha,
+                        self.beta,
+                        &self.pheromones,
+                        self.pheromone_evaporation_rate,
+                        round_number,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
 
         let mut pheromones_by_path = HashMap::<(Surgery, Surgery), f64>::new();
         let (mut best_objective_function, mut best_scheduling, mut best_paths) =

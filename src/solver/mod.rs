@@ -31,6 +31,7 @@ impl Solver {
         pheromone_evaporation_rate: f64,
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
+        in_parallel: bool,
     ) -> (f64, u32, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
@@ -47,6 +48,7 @@ impl Solver {
                 surgeries,
                 max_days_waiting,
                 priority_penalties,
+                in_parallel,
             ),
         };
 
