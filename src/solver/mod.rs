@@ -23,6 +23,7 @@ impl Solver {
         rooms_count: usize,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
         priority_penalties: HashMap<Priority, u32>,
+        pheromone_evaporation_rate: f64,
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
     ) -> (f64, u32) {
@@ -34,6 +35,7 @@ impl Solver {
                 rooms_count,
                 1.0,
                 1.0,
+                pheromone_evaporation_rate,
                 surgeons_ids,
                 surgeries,
                 max_days_waiting,
@@ -41,22 +43,32 @@ impl Solver {
             ),
         };
 
-        let mut best_objective_function_result = 0.0;
+        let mut best_objective_function_result = f64::INFINITY;
         let mut best_objective_function_round = 0;
+        let mut best_scheduling = Default::default();
+        let mut best_time = Default::default();
         for round in 1..(max_rounds_count + 1) {
-            let (objective_function_result, elapsed_time) = solver.ant_colony.round(round);
+            let (objective_function_result, scheduling, elapsed_time) =
+                solver.ant_colony.round(round);
             println!(
                 "Round: {}; Objective Function: {}; Elapsed Time: {:#?}",
                 round, objective_function_result, elapsed_time
             );
-            if objective_function_result > best_objective_function_result {
+            if objective_function_result < best_objective_function_result {
                 best_objective_function_result = objective_function_result;
-                best_objective_function_round = round
+                best_objective_function_round = round;
+                best_scheduling = scheduling;
+                best_time = elapsed_time;
             }
             if round - best_objective_function_round > max_rounds_without_improvement {
                 break;
             }
         }
+
+        println!(
+            "Scheduling: {:#?}\nBest objective function result: {}; Round: {}",
+            best_scheduling, best_objective_function_result, best_objective_function_round,
+        );
 
         (
             best_objective_function_result,

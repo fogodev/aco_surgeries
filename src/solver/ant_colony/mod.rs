@@ -6,6 +6,7 @@ use std::time::{Duration, SystemTime};
 
 use super::surgery::{DaysWaiting, Priority, Surgery};
 use crate::solver::surgeon::SurgeonID;
+use crate::solver::week::Week;
 use ant::Ant;
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ pub struct AntColony {
     ants_count: usize,
     rooms_count: usize,
     pheromones: HashMap<(Surgery, Surgery), f64>,
+    pheromone_evaporation_rate: f64,
     alpha: f64,
     beta: f64,
     surgeons_ids: Arc<Vec<SurgeonID>>,
@@ -27,6 +29,7 @@ impl AntColony {
         rooms_count: usize,
         alpha: f64,
         beta: f64,
+        pheromone_evaporation_rate: f64,
         surgeons_ids: Vec<SurgeonID>,
         surgeries_bin: HashSet<Surgery>,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
@@ -44,6 +47,7 @@ impl AntColony {
             ants_count,
             rooms_count,
             pheromones: HashMap::new(),
+            pheromone_evaporation_rate,
             alpha,
             beta,
             surgeons_ids,
@@ -53,7 +57,7 @@ impl AntColony {
         }
     }
 
-    pub fn round(&mut self, round_number: u32) -> (f64, Duration) {
+    pub fn round(&mut self, round_number: u32) -> (f64, Vec<(Week, f64)>, Duration) {
         let now = SystemTime::now();
 
         let objective_function_results = (0..self.ants_count)
@@ -70,16 +74,25 @@ impl AntColony {
                     self.alpha,
                     self.beta,
                     &self.pheromones,
+                    self.pheromone_evaporation_rate,
                     round_number,
                 )
             })
             .collect::<Vec<_>>();
 
-        println!("{:#?}", objective_function_results);
-        // ToDo Calcular FO de cada formiga
+        // println!("{:#?}", objective_function_results);
+
+        let (mut best_objective_function, mut best_ant) = (f64::INFINITY, Default::default());
+        objective_function_results.into_iter().for_each(|result| {
+            if result.0 < best_objective_function {
+                best_objective_function = result.0;
+                best_ant = result.1;
+            }
+        });
+
         // ToDo Atualizar feromônios seguindo a melhor FO
         // ToDo Retornar melhor FO
 
-        (0.0, now.elapsed().unwrap())
+        (best_objective_function, best_ant, now.elapsed().unwrap())
     }
 }

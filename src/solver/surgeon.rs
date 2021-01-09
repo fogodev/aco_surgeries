@@ -4,6 +4,7 @@ use super::surgery::Surgery;
 
 pub type SurgeonID = usize;
 
+#[derive(Debug)]
 pub struct SurgeonWeekly {
     max_week_time: u8,
     current_week_time: u8,
@@ -29,11 +30,20 @@ impl SurgeonWeekly {
         self.current_week_time += surgery.duration;
     }
 
+    pub fn deallocate(&mut self, surgery: &Surgery) {
+        if self.current_week_time < surgery.duration {
+            panic!("Tried to deallocate a surgery that has not been allocated");
+        }
+
+        self.current_week_time -= surgery.duration;
+    }
+
     pub fn many_from_ids(ids: &[SurgeonID]) -> HashMap<SurgeonID, SurgeonWeekly> {
         ids.iter().map(|id| (*id, Self::new())).collect()
     }
 }
 
+#[derive(Debug)]
 pub struct SurgeonDaily {
     max_day_time: u8,
     current_day_time: u8,
@@ -57,6 +67,14 @@ impl SurgeonDaily {
         }
 
         self.current_day_time += surgery.duration;
+    }
+
+    pub fn deallocate(&mut self, surgery: &Surgery) {
+        if self.current_day_time < surgery.duration {
+            panic!("Tried to deallocate a surgery that has not been allocated");
+        }
+
+        self.current_day_time -= surgery.duration;
     }
 
     pub fn many_from_ids(ids: &[SurgeonID]) -> HashMap<SurgeonID, SurgeonDaily> {

@@ -1,7 +1,9 @@
 use crate::solver::surgery::{Speciality, Surgery};
+use std::collections::HashSet;
 
+#[derive(Debug)]
 pub struct RoomPerDay {
-    surgeries: Vec<Surgery>,
+    surgeries: HashSet<Surgery>,
     speciality: Speciality,
     remaining_slots: u8,
 }
@@ -10,11 +12,17 @@ impl RoomPerDay {
     pub fn new(first_surgery: Surgery) -> Self {
         let surgery_duration = first_surgery.duration;
         let surgery_speciality = first_surgery.speciality;
+        let mut surgeries = HashSet::with_capacity(1);
+        surgeries.insert(first_surgery);
         Self {
-            surgeries: vec![first_surgery],
+            surgeries,
             speciality: surgery_speciality,
             remaining_slots: 46 - surgery_duration,
         }
+    }
+
+    pub fn surgeries(&self) -> &HashSet<Surgery> {
+        &self.surgeries
     }
 
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
@@ -34,6 +42,11 @@ impl RoomPerDay {
         }
 
         self.remaining_slots -= 2 + surgery.duration;
-        self.surgeries.push(surgery);
+        self.surgeries.insert(surgery);
+    }
+
+    pub fn unschedule_surgery(&mut self, surgery: &Surgery) {
+        self.remaining_slots += 2 + surgery.duration;
+        self.surgeries.remove(surgery);
     }
 }

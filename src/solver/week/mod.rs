@@ -4,11 +4,11 @@ pub mod room_per_day;
 use day::Day;
 
 use crate::solver::surgeon::{SurgeonID, SurgeonWeekly};
-use crate::solver::surgery::Surgery;
+use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Week {
     days: Vec<Day>,
     rooms_count: usize,
@@ -24,6 +24,10 @@ impl Week {
         }
     }
 
+    pub fn days(&self) -> &Vec<Day> {
+        &self.days
+    }
+
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
         self.weekly_surgeons[&surgery.surgeon_id].has_availability(surgery)
             && (self.days.len() <= self.days.capacity()
@@ -33,7 +37,7 @@ impl Week {
                     .any(|day| day.can_schedule_surgery(surgery)))
     }
 
-    pub fn schedule_surgery(&mut self, surgery: Surgery) {
+    pub fn schedule_surgery(&mut self, surgery: Surgery) -> usize {
         if !self.can_schedule_surgery(&surgery) {
             panic!("Tried to schedule a surgery on a full week!");
         }
@@ -49,18 +53,36 @@ impl Week {
         match self
             .days
             .iter_mut()
-            .filter(|day| day.can_schedule_surgery(&surgery))
+            .enumerate()
+            .filter(|index_day| index_day.1.can_schedule_surgery(&surgery))
             .next()
         {
-            Some(day) => day.schedule_surgery(surgery),
+            Some(index_day) => {
+                index_day.1.schedule_surgery(surgery);
+                index_day.0
+            }
             None => {
                 let mut day = Day::new(
                     self.rooms_count,
                     &self.weekly_surgeons.keys().cloned().collect::<Vec<_>>(),
                 );
                 day.schedule_surgery(surgery);
-                self.days.push(day)
+                self.days.push(day);
+                self.days.len() - 1
             }
+        }
+    }
+
+    pub fn unschedule_surgery(&mut self, day: usize, surgery: &Surgery) {
+        self.weekly_surgeons
+            .get_mut(&surgery.surgeon_id)
+            .unwrap()
+            .deallocate(&surgery);
+
+        self.days[day].unschedule_surgery(surgery);
+
+        if self.days[day].is_empty() {
+            self.days.remove(day);
         }
     }
 
@@ -74,5 +96,35 @@ impl Week {
 
     pub fn is_full(&self, surgeries: &HashSet<Surgery>) -> bool {
         !surgeries.is_empty() && self.filter_available_surgeries(surgeries).is_empty()
+    }
+
+    pub fn calculate_objective_function(
+        &self,
+        surgeries_bin: &HashSet<Surgery>,
+        max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
+        priority_penalties: Arc<HashMap<Priority, u32>>,
+        week_index: usize,
+    ) -> f64 {
+        let mut total_objective = 0.0;
+
+        for (index, current_day) in self.days.iter().enumerate() {
+            for surgery in current_day.surgeries() {
+                let day = index as u32 + 1 + (7 * week_index as u32);
+                total_objective +=
+                    surgery.scheduled_objective_function(max_days_waiting.clone(), day);
+                if day != 1 && surgery.priority == 1 {
+                    total_objective += surgery.penalty_for_not_scheduling_on_first_day(day);
+                }
+            }
+        }
+
+        for surgery in surgeries_bin {
+            total_objective += surgery.not_scheduled_objective_function(
+                max_days_waiting.clone(),
+                priority_penalties.clone(),
+            )
+        }
+
+        total_objective
     }
 }

@@ -6,8 +6,9 @@ pub type DaysWaiting = u32;
 
 use super::surgeon::SurgeonID;
 use std::collections::HashMap;
+use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Surgery {
     id: usize,
     pub duration: u8,
@@ -52,7 +53,7 @@ impl Surgery {
 
     pub fn scheduled_objective_function(
         &self,
-        max_days_waiting: &HashMap<Priority, DaysWaiting>,
+        max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
         day: u32,
     ) -> f64 {
         let days_waited = self.days_waiting + 2 + day;
@@ -67,8 +68,8 @@ impl Surgery {
 
     pub fn not_scheduled_objective_function(
         &self,
-        max_days_waiting: &HashMap<Priority, DaysWaiting>,
-        priority_penalties: &HashMap<Priority, u32>,
+        max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
+        priority_penalties: Arc<HashMap<Priority, u32>>,
     ) -> f64 {
         let my_max_days_waiting = max_days_waiting[&self.priority];
         if my_max_days_waiting > self.days_waiting + 9 {

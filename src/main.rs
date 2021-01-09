@@ -15,11 +15,12 @@ fn main() {
         .collect::<HashMap<Priority, DaysWaiting>>();
 
     Solver::solve(
-        "./sample_data/10_inst.csv",
+        "./sample_data/1_inst.csv",
         1,
         1,
         max_days_waiting,
         priority_penalties,
+        0.5,
         1000,
         100,
     );

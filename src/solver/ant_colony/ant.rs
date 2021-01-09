@@ -14,7 +14,7 @@ pub struct Ant {
     surgeries_bin: HashSet<Surgery>,
     surgeons_ids: Arc<Vec<SurgeonID>>,
     current_week: Option<Week>,
-    past_weeks: Vec<Week>,
+    past_weeks: Vec<(Week, f64)>,
     visited_surgeries: HashSet<Surgery>,
     current_surgery: Option<Surgery>,
     max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
@@ -64,7 +64,7 @@ impl Ant {
             .clone();
 
         if let Some(ref mut week) = self.current_week {
-            week.schedule_surgery(chosen.clone())
+            week.schedule_surgery(chosen.clone());
         }
 
         self.surgeries_bin.remove(&chosen);
@@ -77,6 +77,7 @@ impl Ant {
         alpha: f64,
         beta: f64,
         pheromones: &HashMap<(Surgery, Surgery), f64>,
+        pheromone_evaporation_rate: f64,
         round_number: u32,
     ) {
         // First surgery for this ant
@@ -85,50 +86,82 @@ impl Ant {
         } else {
             // All other surgeries
             let mut current_week = self.current_week.take().unwrap();
+            let week_index = self.past_weeks.len();
+
+            let current_objective_function = current_week.calculate_objective_function(
+                &self.surgeries_bin,
+                self.max_days_waiting.clone(),
+                self.priority_penalties.clone(),
+                week_index,
+            );
 
             let available_surgeries = current_week.filter_available_surgeries(&self.surgeries_bin);
 
             let current_surgery = self.current_surgery.take().unwrap();
 
-            let summation = available_surgeries
+            let heuristic_values = available_surgeries
                 .iter()
-                .filter(|&surgery| current_surgery != *surgery)
                 .map(|surgery| {
                     let key = (current_surgery.clone(), surgery.clone());
                     let pheromone = if pheromones.contains_key(&key) {
                         pheromones[&key]
                     } else {
-                        // ToDo default value must decay by given round_number, check if this approach is ok
-                        1.0 / round_number as f64
+                        (1.0 - pheromone_evaporation_rate).powf((round_number - 1) as f64)
                     };
-                    pheromone.powf(alpha) // ToDo use heuristic function here
-                                          // * heuristic.powf(beta)
+                    let scheduled_day = current_week.schedule_surgery(surgery.clone());
+                    let objective_function_with_surgery = current_week
+                        .calculate_objective_function(
+                            &self.surgeries_bin,
+                            self.max_days_waiting.clone(),
+                            self.priority_penalties.clone(),
+                            week_index,
+                        );
+                    current_week.unschedule_surgery(scheduled_day, surgery);
+                    let heuristic = current_objective_function - objective_function_with_surgery;
+
+                    pheromone.powf(alpha) * heuristic.powf(beta)
                 })
+                .collect::<Vec<f64>>();
+
+            let smallest_value = heuristic_values
+                .iter()
+                .fold(f64::INFINITY, |a, &b| a.min(b));
+            let summation = heuristic_values
+                .into_iter()
+                .map(|value| value - smallest_value + 0.1)
                 .sum::<f64>();
 
-            let surgeries_probability = available_surgeries
+            let mut surgeries_probability = available_surgeries
                 .iter()
-                .filter(|&surgery| current_surgery != *surgery)
                 .map(|surgery| {
                     let key = (current_surgery.clone(), surgery.clone());
                     let pheromone = if pheromones.contains_key(&key) {
                         pheromones[&key]
                     } else {
-                        // ToDo default value must decay by given round_number, check if this approach is ok
-                        1.0 / round_number as f64
+                        (1.0 - pheromone_evaporation_rate).powf((round_number - 1) as f64)
                     };
-                    // ToDo use heuristic funcion here
-                    // let heuristic = heuristic_function(&current_surgery, possible_next_surgery);
+                    let scheduled_day = current_week.schedule_surgery(surgery.clone());
+                    let objective_function_with_surgery = current_week
+                        .calculate_objective_function(
+                            &self.surgeries_bin,
+                            self.max_days_waiting.clone(),
+                            self.priority_penalties.clone(),
+                            week_index,
+                        );
+                    current_week.unschedule_surgery(scheduled_day, surgery);
+                    let heuristic = current_objective_function - objective_function_with_surgery;
 
-                    (
-                        surgery,
-                        // ToDo change this, heuristic function can return negative numbers
-                        pheromone.powf(alpha) // ToDo use heuristic function result here  
-                            // * heuristic.powf(beta) 
-                            / summation,
-                    )
+                    (surgery, pheromone.powf(alpha) * heuristic.powf(beta))
                 })
                 .collect::<Vec<_>>();
+
+            let smallest_value = surgeries_probability
+                .iter()
+                .map(|value| value.1)
+                .fold(f64::INFINITY, |a, b| a.min(b));
+            surgeries_probability.iter_mut().for_each(|value| {
+                value.1 = (value.1 - smallest_value + 0.1) / summation;
+            });
 
             let next_surgery = surgeries_probability
                 .choose_weighted(&mut self.random_number_generator, |surgery_probability| {
@@ -145,7 +178,13 @@ impl Ant {
 
             // If week is full, self.current_week will be a new week
             if current_week.is_full(&self.surgeries_bin) {
-                self.past_weeks.push(current_week);
+                let objective_function = current_week.calculate_objective_function(
+                    &self.surgeries_bin,
+                    self.max_days_waiting.clone(),
+                    self.priority_penalties.clone(),
+                    week_index,
+                );
+                self.past_weeks.push((current_week, objective_function));
                 self.current_week = Some(Week::new(self.rooms_count, self.surgeons_ids.clone()))
             } else {
                 // Otherwise, self.current_week remais the same current_week
@@ -157,50 +196,33 @@ impl Ant {
             .insert(self.current_surgery.clone().unwrap().clone());
     }
 
-    fn calculate_objective_function(
-        &self,
-        max_days_waiting: &HashMap<Priority, DaysWaiting>,
-        priority_penalties: &HashMap<Priority, u32>,
-    ) -> f64 {
-        let mut total_objective = 0.0;
-
-        // ToDo change this code to comply with current structures
-        // for current_day in &self.daily_solutions {
-        //     for surgery in &current_day.surgeries {
-        //         total_objective +=
-        //             surgery.scheduled_objective_function(max_days_waiting, current_day.day);
-        //         if current_day.day != 1 && surgery.priority == 1 {
-        //             total_objective +=
-        //                 surgery.penalty_for_not_scheduling_on_first_day(current_day.day);
-        //         }
-        //     }
-        // }
-        //
-        // for surgery in &self.surgeries_bin {
-        //     total_objective +=
-        //         surgery.not_scheduled_objective_function(max_days_waiting, priority_penalties)
-        // }
-
-        total_objective += 42.0;
-
-        total_objective
-    }
-
     pub fn find_solution(
-        &mut self,
+        mut self,
         alpha: f64,
         beta: f64,
         pheromones: &HashMap<(Surgery, Surgery), f64>,
+        pheromone_evaporation_rate: f64,
         round_number: u32,
-    ) -> f64 {
+    ) -> (f64, Vec<(Week, f64)>) {
         while !self.surgeries_bin.is_empty() {
-            self.choose_next_surgery(alpha, beta, pheromones, round_number);
+            self.choose_next_surgery(
+                alpha,
+                beta,
+                pheromones,
+                pheromone_evaporation_rate,
+                round_number,
+            );
         }
+        let current_week = self.current_week.take().unwrap();
+        let current_week_objective_function = current_week.calculate_objective_function(
+            &self.surgeries_bin,
+            self.max_days_waiting.clone(),
+            self.priority_penalties.clone(),
+            self.past_weeks.len(),
+        );
+        self.past_weeks
+            .push((current_week, current_week_objective_function));
 
-        self.past_weeks.push(self.current_week.take().unwrap());
-
-        // ToDo calculate objective function
-        // self.past_weeks.iter().map(|week| week.calculate_objective_function()).sum::<f64>()
-        0.0
+        (self.past_weeks[0].1, self.past_weeks)
     }
 }

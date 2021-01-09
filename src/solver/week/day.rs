@@ -4,6 +4,7 @@ use super::room_per_day::RoomPerDay;
 use crate::solver::surgeon::{SurgeonDaily, SurgeonID};
 use crate::solver::surgery::Surgery;
 
+#[derive(Debug)]
 pub struct Day {
     rooms: Vec<RoomPerDay>,
     daily_surgeons: HashMap<SurgeonID, SurgeonDaily>,
@@ -15,6 +16,19 @@ impl Day {
             rooms: Vec::with_capacity(rooms_count),
             daily_surgeons: SurgeonDaily::many_from_ids(surgeon_ids),
         }
+    }
+
+    pub fn surgeries(&self) -> Vec<Surgery> {
+        self.rooms
+            .iter()
+            .map(|room| room.surgeries())
+            .flatten()
+            .cloned()
+            .collect()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rooms.iter().all(|room| room.surgeries().is_empty())
     }
 
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
@@ -48,5 +62,23 @@ impl Day {
             Some(room) => room.schedule_surgery(surgery),
             None => self.rooms.push(RoomPerDay::new(surgery)),
         }
+    }
+
+    pub fn has_surgery(&self, surgery: &Surgery) -> bool {
+        self.rooms
+            .iter()
+            .map(|room| room.surgeries())
+            .any(|surgeries| surgeries.contains(surgery))
+    }
+
+    pub fn unschedule_surgery(&mut self, surgery: &Surgery) {
+        self.daily_surgeons
+            .get_mut(&surgery.surgeon_id)
+            .unwrap()
+            .deallocate(&surgery);
+
+        self.rooms.iter_mut().for_each(|room| {
+            room.unschedule_surgery(surgery);
+        });
     }
 }
