@@ -4,7 +4,7 @@ use super::room_per_day::RoomPerDay;
 use crate::solver::surgeon::{SurgeonDaily, SurgeonID};
 use crate::solver::surgery::Surgery;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Day {
     rooms: Vec<RoomPerDay>,
     daily_surgeons: HashMap<SurgeonID, SurgeonDaily>,
@@ -62,13 +62,6 @@ impl Day {
             Some(room) => room.schedule_surgery(surgery),
             None => self.rooms.push(RoomPerDay::new(surgery)),
         }
-    }
-
-    pub fn has_surgery(&self, surgery: &Surgery) -> bool {
-        self.rooms
-            .iter()
-            .map(|room| room.surgeries())
-            .any(|surgeries| surgeries.contains(surgery))
     }
 
     pub fn unschedule_surgery(&mut self, surgery: &Surgery) {

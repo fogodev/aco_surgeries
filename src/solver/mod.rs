@@ -9,6 +9,7 @@ use crate::solver::surgery::Speciality;
 use ant_colony::AntColony;
 use std::fmt::Debug;
 use std::path::Path;
+use std::time::{Duration, Instant};
 use surgeon::SurgeonID;
 use surgery::{DaysWaiting, Priority, Surgery};
 
@@ -23,18 +24,24 @@ impl Solver {
         rooms_count: usize,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
         priority_penalties: HashMap<Priority, u32>,
+        alpha: f64,
+        beta: f64,
+        elitism_factor: f64,
+        pheromone_deposit_rate: f64,
         pheromone_evaporation_rate: f64,
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
-    ) -> (f64, u32) {
+    ) -> (f64, u32, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
         let mut solver = Self {
             ant_colony: AntColony::new(
                 ants_count,
                 rooms_count,
-                1.0,
-                1.0,
+                alpha,
+                beta,
+                elitism_factor,
+                pheromone_deposit_rate,
                 pheromone_evaporation_rate,
                 surgeons_ids,
                 surgeries,
@@ -43,12 +50,12 @@ impl Solver {
             ),
         };
 
+        let now = Instant::now();
+
         let mut best_objective_function_result = f64::INFINITY;
         let mut best_objective_function_round = 0;
-        let mut best_scheduling = Default::default();
-        let mut best_time = Default::default();
         for round in 1..(max_rounds_count + 1) {
-            let (objective_function_result, scheduling, elapsed_time) =
+            let (objective_function_result, _scheduling, elapsed_time) =
                 solver.ant_colony.round(round);
             println!(
                 "Round: {}; Objective Function: {}; Elapsed Time: {:#?}",
@@ -57,22 +64,16 @@ impl Solver {
             if objective_function_result < best_objective_function_result {
                 best_objective_function_result = objective_function_result;
                 best_objective_function_round = round;
-                best_scheduling = scheduling;
-                best_time = elapsed_time;
             }
             if round - best_objective_function_round > max_rounds_without_improvement {
                 break;
             }
         }
 
-        println!(
-            "Scheduling: {:#?}\nBest objective function result: {}; Round: {}",
-            best_scheduling, best_objective_function_result, best_objective_function_round,
-        );
-
         (
             best_objective_function_result,
             best_objective_function_round,
+            now.elapsed(),
         )
     }
 

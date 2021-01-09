@@ -4,7 +4,7 @@ use super::surgery::Surgery;
 
 pub type SurgeonID = usize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SurgeonWeekly {
     max_week_time: u8,
     current_week_time: u8,
@@ -43,7 +43,7 @@ impl SurgeonWeekly {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SurgeonDaily {
     max_day_time: u8,
     current_day_time: u8,

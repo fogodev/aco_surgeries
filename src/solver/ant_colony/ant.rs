@@ -203,7 +203,7 @@ impl Ant {
         pheromones: &HashMap<(Surgery, Surgery), f64>,
         pheromone_evaporation_rate: f64,
         round_number: u32,
-    ) -> (f64, Vec<(Week, f64)>) {
+    ) -> (f64, Vec<(Week, f64)>, Vec<(Surgery, Surgery)>) {
         while !self.surgeries_bin.is_empty() {
             self.choose_next_surgery(
                 alpha,
@@ -223,6 +223,6 @@ impl Ant {
         self.past_weeks
             .push((current_week, current_week_objective_function));
 
-        (self.past_weeks[0].1, self.past_weeks)
+        (self.past_weeks[0].1, self.past_weeks, self.path)
     }
 }

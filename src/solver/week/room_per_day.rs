@@ -1,7 +1,7 @@
 use crate::solver::surgery::{Speciality, Surgery};
 use std::collections::HashSet;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RoomPerDay {
     surgeries: HashSet<Surgery>,
     speciality: Speciality,

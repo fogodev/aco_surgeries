@@ -8,7 +8,7 @@ use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Week {
     days: Vec<Day>,
     rooms_count: usize,
@@ -22,10 +22,6 @@ impl Week {
             rooms_count,
             weekly_surgeons: SurgeonWeekly::many_from_ids(&*surgeon_ids),
         }
-    }
-
-    pub fn days(&self) -> &Vec<Day> {
-        &self.days
     }
 
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
