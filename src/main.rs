@@ -91,7 +91,7 @@ fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
     let name = instance_name.split(".csv").next().unwrap();
     let solution_name = format!("{}_sol.csv", name);
     let mut file = File::create(solution_name).expect("Unable to create csv file");
-    write!(file, "Cirurgia (c),Sala (r),Dia (d),Horário (t)\n").expect("Failed to write header");
+    write!(file, "Cirurgia (c);Sala (r);Dia (d);Horário (t)\n").expect("Failed to write header");
 
     let mut results = Vec::new();
 
@@ -114,6 +114,6 @@ fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
 
     results.sort_by(|element1, element2| element1.0.cmp(&element2.0));
     for row in results {
-        write!(file, "{},{},{},{}\n", row.0, row.1, row.2, row.3,).expect("Failed to write row");
+        write!(file, "{};{};{};{}\n", row.0, row.1, row.2, row.3,).expect("Failed to write row");
     }
 }
