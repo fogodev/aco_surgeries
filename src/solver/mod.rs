@@ -6,6 +6,7 @@ pub mod surgery;
 pub mod week;
 
 use crate::solver::surgery::Speciality;
+use crate::solver::week::Week;
 use ant_colony::AntColony;
 use std::fmt::Debug;
 use std::path::Path;
@@ -32,7 +33,7 @@ impl Solver {
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
         in_parallel: bool,
-    ) -> (f64, u32, Duration) {
+    ) -> (f64, u32, Vec<(Week, f64)>, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
         let mut solver = Self {
@@ -56,8 +57,9 @@ impl Solver {
 
         let mut best_objective_function_result = f64::INFINITY;
         let mut best_objective_function_round = 0;
+        let mut best_scheduling = Vec::new();
         for round in 1..(max_rounds_count + 1) {
-            let (objective_function_result, _scheduling, elapsed_time) =
+            let (objective_function_result, scheduling, elapsed_time) =
                 solver.ant_colony.round(round);
             println!(
                 "Round: {}; Objective Function: {}; Elapsed Time: {:#?}",
@@ -66,6 +68,7 @@ impl Solver {
             if objective_function_result < best_objective_function_result {
                 best_objective_function_result = objective_function_result;
                 best_objective_function_round = round;
+                best_scheduling = scheduling;
             }
             if round - best_objective_function_round > max_rounds_without_improvement {
                 break;
@@ -75,6 +78,7 @@ impl Solver {
         (
             best_objective_function_result,
             best_objective_function_round,
+            best_scheduling,
             now.elapsed(),
         )
     }

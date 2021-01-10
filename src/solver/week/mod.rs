@@ -30,6 +30,10 @@ impl Week {
         }
     }
 
+    pub fn days(&self) -> &Vec<Day> {
+        &self.days
+    }
+
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
         self.weekly_surgeons[&surgery.surgeon_id].has_availability(surgery)
             && (self.days.len() <= self.days.capacity()
@@ -83,7 +87,11 @@ impl Week {
     }
 
     pub fn unschedule_surgery(&mut self, schedule_token: ScheduleToken, surgery: &Surgery) {
-        let ScheduleToken{day_index, room_index, surgery_index} = schedule_token;
+        let ScheduleToken {
+            day_index,
+            room_index,
+            surgery_index,
+        } = schedule_token;
         self.weekly_surgeons
             .get_mut(&surgery.surgeon_id)
             .unwrap()

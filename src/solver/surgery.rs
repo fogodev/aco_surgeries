@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug)]
 pub struct Surgery {
-    id: usize,
+    pub id: usize,
     pub duration: u8,
     pub days_waiting: DaysWaiting,
     pub priority: Priority,

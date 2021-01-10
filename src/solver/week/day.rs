@@ -18,6 +18,10 @@ impl Day {
         }
     }
 
+    pub fn rooms(&self) -> &Vec<RoomPerDay> {
+        &self.rooms
+    }
+
     pub fn surgeries(&self) -> Vec<Surgery> {
         self.rooms
             .iter()
@@ -59,17 +63,20 @@ impl Day {
             .enumerate()
             .find(|index_room| index_room.1.can_schedule_surgery(&surgery))
         {
-            Some(index_room) => {
-                (index_room.0, index_room.1.schedule_surgery(surgery))
-            },
+            Some(index_room) => (index_room.0, index_room.1.schedule_surgery(surgery)),
             None => {
                 self.rooms.push(RoomPerDay::new(surgery));
-                (self.rooms.len() - 1 , 0)
-            },
+                (self.rooms.len() - 1, 0)
+            }
         }
     }
 
-    pub fn unschedule_surgery(&mut self, room_index: usize, surgery_index: usize, surgery: &Surgery) {
+    pub fn unschedule_surgery(
+        &mut self,
+        room_index: usize,
+        surgery_index: usize,
+        surgery: &Surgery,
+    ) {
         self.daily_surgeons
             .get_mut(&surgery.surgeon_id)
             .unwrap()
