@@ -7,11 +7,79 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
+use clap::{Arg, App};
 
 const INSTANCE_NAME: &str = "./sample_data/Indefinidas - i1.csv";
 const ROOMS_COUNT: usize = 2;
 
 fn main() {
+    let inputs = App::new("Ant colony optimization for surgery scheduling.")
+        .version("0.0.1")
+        .author("Ericson Soares")
+        .about("Solves surgery scheduling problem using ant colony optimization algorithm.")
+        .arg(Arg::with_name("instance_file")
+                 .short("f")
+                 .long("file")
+                 .takes_value(true)
+                 .help("An instance csv file."))
+        .arg(Arg::with_name("elitism_factor")
+                 .short("el")
+                 .long("elitism")
+                 .takes_value(true)
+                 .help("Elitism factor on pheromones, change to 0 to not use it."))
+        .arg(Arg::with_name("deposit")
+                 .short("d")
+                 .long("deposit")
+                 .takes_value(true)
+                 .help("Pheromones deposit rate."))
+        .arg(Arg::with_name("evaporation")
+                 .short("ev")
+                 .long("evaporation")
+                 .takes_value(true)
+                 .help("Pheromones evaporation rate."))
+        .arg(Arg::with_name("rooms")
+                 .short("r")
+                 .long("rooms")
+                 .takes_value(true)
+                 .help("Number of surgery rooms."))
+        .arg(Arg::with_name("alpha")
+                 .short("a")
+                 .long("alpha")
+                 .takes_value(true)
+                 .help("Alpha parameter to control pheromones intensity."))
+        .arg(Arg::with_name("beta")
+                 .short("b")
+                 .long("beta")
+                 .takes_value(true)
+                 .help("Beta parameter to control heuristic intensity."))
+        .arg(Arg::with_name("max_rounds")
+                 .short("max_r")
+                 .long("max_rounds")
+                 .takes_value(true)
+                 .help("Max number of rounds to execute the algorithm."))
+        .arg(Arg::with_name("max_rounds_improv")
+                 .short("max_r_imp")
+                 .long("max_rounds_improv")
+                 .takes_value(true)
+                 .help("Max number of rounds without improvement to execute the algorithm."))
+        .arg(Arg::with_name("in_parallel")
+                 .short("p")
+                 .long("in_parallel")
+                 .takes_value(true)
+                 .help("Choose true or false to execute it in parallel."))
+        .get_matches();
+
+    let instance_file = inputs.value_of("instance_file").unwrap_or("./sample_data/Indefinidas - i1.csv");
+    let in_parallel: bool = inputs.value_of("in_parallel").unwrap_or(false);
+    let max_rounds = inputs.value_of("max_rounds").unwrap_or(1000);
+    let max_rounds_improv = inputs.value_of("max_rounds").unwrap_or(1000);
+    let elitism_factor = inputs.value_of("elitism_factor").unwrap_or(1.0);
+    let deposit = inputs.value_of("deposit").unwrap_or(10000.0);
+    let evaporation = inputs.values_of("evaporation").unwrap_or(0.2);
+    let rooms = inputs.values_of("rooms").unwrap_or(1);
+    let alpha = inputs.values_of("alpha").unwrap_or(1.0);
+    let beta = inputs.values_of("beta").unwrap_or(1.0);
+
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
         .cloned()
@@ -35,14 +103,14 @@ fn main() {
             ROOMS_COUNT,
             max_days_waiting.clone(),
             priority_penalties.clone(),
-            2.0,
-            1.0,
-            1.0,
-            10000.0,
-            0.2,
-            1000,
-            500,
-            false,
+            alpha,
+            beta,
+            elitism_factor,
+            deposit,
+            evaporation,
+            max_rounds,
+            max_rounds_improv,
+            in_parallel,
         );
         if result < best_result {
             best_result = result;
