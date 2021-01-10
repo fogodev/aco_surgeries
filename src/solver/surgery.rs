@@ -59,7 +59,7 @@ impl Surgery {
         let days_waited = self.days_waiting + 2 + day;
         let my_max_days_waiting = max_days_waiting[&self.priority];
 
-        if my_max_days_waiting > days_waited {
+        if my_max_days_waiting + 1 >= days_waited {
             days_waited.pow(2).into()
         } else {
             (days_waited.pow(2) + (days_waited - my_max_days_waiting).pow(2)).into()
@@ -72,7 +72,7 @@ impl Surgery {
         priority_penalties: Arc<HashMap<Priority, u32>>,
     ) -> f64 {
         let my_max_days_waiting = max_days_waiting[&self.priority];
-        if my_max_days_waiting > self.days_waiting + 9 {
+        if my_max_days_waiting + 1 >= self.days_waiting + 9 {
             (self.days_waiting + 7).pow(2).into()
         } else {
             (((self.days_waiting + 7).pow(2)
