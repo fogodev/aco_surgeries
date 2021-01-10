@@ -40,7 +40,7 @@ impl Day {
                     .any(|room| room.can_schedule_surgery(surgery)))
     }
 
-    pub fn schedule_surgery(&mut self, surgery: Surgery) {
+    pub fn schedule_surgery(&mut self, surgery: Surgery) -> (usize, usize) {
         if !self.can_schedule_surgery(&surgery) {
             panic!("Tried to allocate a surgery on a full day");
         }
@@ -56,22 +56,25 @@ impl Day {
         match self
             .rooms
             .iter_mut()
-            .filter(|room| room.can_schedule_surgery(&surgery))
-            .next()
+            .enumerate()
+            .find(|index_room| index_room.1.can_schedule_surgery(&surgery))
         {
-            Some(room) => room.schedule_surgery(surgery),
-            None => self.rooms.push(RoomPerDay::new(surgery)),
+            Some(index_room) => {
+                (index_room.0, index_room.1.schedule_surgery(surgery))
+            },
+            None => {
+                self.rooms.push(RoomPerDay::new(surgery));
+                (self.rooms.len() - 1 , 0)
+            },
         }
     }
 
-    pub fn unschedule_surgery(&mut self, surgery: &Surgery) {
+    pub fn unschedule_surgery(&mut self, room_index: usize, surgery_index: usize, surgery: &Surgery) {
         self.daily_surgeons
             .get_mut(&surgery.surgeon_id)
             .unwrap()
             .deallocate(&surgery);
 
-        self.rooms.iter_mut().for_each(|room| {
-            room.unschedule_surgery(surgery);
-        });
+        self.rooms[room_index].unschedule_surgery(surgery_index, surgery);
     }
 }

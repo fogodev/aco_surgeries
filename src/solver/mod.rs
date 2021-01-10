@@ -89,12 +89,12 @@ impl Solver {
         let mut surgeons_ids = Vec::new();
 
         for (line_number, row) in csv::Reader::from_path(filename)
-            .expect(&format!("Unable to read from {:#?}", &filename))
+            .unwrap_or_else(|_| panic!("Unable to read from {:#?}", &filename))
             .deserialize()
             .enumerate()
         {
             let record: Record =
-                row.expect(&format!("Malformed line error at line: {}", line_number));
+                row.unwrap_or_else(|_| panic!("Malformed line error at line: {}", line_number));
             let (id, priority, days_waiting, speciality, surgeon_id, duration) = record;
 
             surgeries.insert(Surgery::new(

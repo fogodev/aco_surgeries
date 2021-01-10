@@ -1,9 +1,8 @@
 use crate::solver::surgery::{Speciality, Surgery};
-use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct RoomPerDay {
-    surgeries: HashSet<Surgery>,
+    surgeries: Vec<Surgery>,
     speciality: Speciality,
     remaining_slots: u8,
 }
@@ -12,8 +11,8 @@ impl RoomPerDay {
     pub fn new(first_surgery: Surgery) -> Self {
         let surgery_duration = first_surgery.duration;
         let surgery_speciality = first_surgery.speciality;
-        let mut surgeries = HashSet::with_capacity(1);
-        surgeries.insert(first_surgery);
+        let mut surgeries = Vec::with_capacity(1);
+        surgeries.push(first_surgery);
         Self {
             surgeries,
             speciality: surgery_speciality,
@@ -21,7 +20,7 @@ impl RoomPerDay {
         }
     }
 
-    pub fn surgeries(&self) -> &HashSet<Surgery> {
+    pub fn surgeries(&self) -> &Vec<Surgery> {
         &self.surgeries
     }
 
@@ -30,7 +29,7 @@ impl RoomPerDay {
         self.speciality == surgery.speciality && surgery.duration + 2 <= self.remaining_slots
     }
 
-    pub fn schedule_surgery(&mut self, surgery: Surgery) {
+    pub fn schedule_surgery(&mut self, surgery: Surgery) -> usize {
         if surgery.duration + 2 > self.remaining_slots {
             panic!("Tried to allocate a surgery on a week without sufficient slots")
         }
@@ -42,11 +41,12 @@ impl RoomPerDay {
         }
 
         self.remaining_slots -= 2 + surgery.duration;
-        self.surgeries.insert(surgery);
+        self.surgeries.push(surgery);
+        self.surgeries.len() - 1
     }
 
-    pub fn unschedule_surgery(&mut self, surgery: &Surgery) {
+    pub fn unschedule_surgery(&mut self, surgery_index: usize, surgery: &Surgery) {
         self.remaining_slots += 2 + surgery.duration;
-        self.surgeries.remove(surgery);
+        self.surgeries.remove(surgery_index);
     }
 }

@@ -148,7 +148,7 @@ impl AntColony {
             let total_pheromone = self
                 .pheromones
                 .entry(path.clone())
-                .or_insert((1.0 - self.pheromone_evaporation_rate).powf((round_number - 1) as f64));
+                .or_insert_with(|| (1.0 - pheromone_evaporation_rate).powf((round_number - 1) as f64));
 
             *total_pheromone =
                 *total_pheromone * (1.0 - pheromone_evaporation_rate) + new_pheromone;

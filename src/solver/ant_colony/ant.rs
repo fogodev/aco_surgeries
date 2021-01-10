@@ -35,7 +35,7 @@ impl Ant {
             rooms_count,
             surgeries_bin,
             surgeons_ids: surgeons_ids.clone(),
-            current_week: Some(Week::new(rooms_count, surgeons_ids.clone())),
+            current_week: Some(Week::new(rooms_count, surgeons_ids)),
             past_weeks: vec![],
             visited_surgeries: Default::default(),
             current_surgery: None,
@@ -108,7 +108,7 @@ impl Ant {
                     } else {
                         (1.0 - pheromone_evaporation_rate).powf((round_number - 1) as f64)
                     };
-                    let scheduled_day = current_week.schedule_surgery(surgery.clone());
+                    let schedule_token = current_week.schedule_surgery(surgery.clone());
                     let objective_function_with_surgery = current_week
                         .calculate_objective_function(
                             &self.surgeries_bin,
@@ -116,7 +116,7 @@ impl Ant {
                             self.priority_penalties.clone(),
                             week_index,
                         );
-                    current_week.unschedule_surgery(scheduled_day, surgery);
+                    current_week.unschedule_surgery(schedule_token, surgery);
                     let heuristic = current_objective_function - objective_function_with_surgery;
 
                     pheromone.powf(alpha) * heuristic.powf(beta)
@@ -140,7 +140,7 @@ impl Ant {
                     } else {
                         (1.0 - pheromone_evaporation_rate).powf((round_number - 1) as f64)
                     };
-                    let scheduled_day = current_week.schedule_surgery(surgery.clone());
+                    let schedule_token = current_week.schedule_surgery(surgery.clone());
                     let objective_function_with_surgery = current_week
                         .calculate_objective_function(
                             &self.surgeries_bin,
@@ -148,7 +148,7 @@ impl Ant {
                             self.priority_penalties.clone(),
                             week_index,
                         );
-                    current_week.unschedule_surgery(scheduled_day, surgery);
+                    current_week.unschedule_surgery(schedule_token, surgery);
                     let heuristic = current_objective_function - objective_function_with_surgery;
 
                     (surgery, pheromone.powf(alpha) * heuristic.powf(beta))
@@ -193,7 +193,7 @@ impl Ant {
         }
 
         self.visited_surgeries
-            .insert(self.current_surgery.clone().unwrap().clone());
+            .insert(self.current_surgery.clone().unwrap());
     }
 
     pub fn find_solution(

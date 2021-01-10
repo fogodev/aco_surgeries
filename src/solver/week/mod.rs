@@ -8,6 +8,12 @@ use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+pub struct ScheduleToken {
+    day_index: usize,
+    room_index: usize,
+    surgery_index: usize,
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct Week {
     days: Vec<Day>,
@@ -33,7 +39,7 @@ impl Week {
                     .any(|day| day.can_schedule_surgery(surgery)))
     }
 
-    pub fn schedule_surgery(&mut self, surgery: Surgery) -> usize {
+    pub fn schedule_surgery(&mut self, surgery: Surgery) -> ScheduleToken {
         if !self.can_schedule_surgery(&surgery) {
             panic!("Tried to schedule a surgery on a full week!");
         }
@@ -50,35 +56,43 @@ impl Week {
             .days
             .iter_mut()
             .enumerate()
-            .filter(|index_day| index_day.1.can_schedule_surgery(&surgery))
-            .next()
+            .find(|index_day| index_day.1.can_schedule_surgery(&surgery))
         {
             Some(index_day) => {
-                index_day.1.schedule_surgery(surgery);
-                index_day.0
+                let (room_index, surgery_index) = index_day.1.schedule_surgery(surgery);
+                ScheduleToken {
+                    day_index: index_day.0,
+                    room_index,
+                    surgery_index,
+                }
             }
             None => {
                 let mut day = Day::new(
                     self.rooms_count,
                     &self.weekly_surgeons.keys().cloned().collect::<Vec<_>>(),
                 );
-                day.schedule_surgery(surgery);
+                let (room_index, surgery_index) = day.schedule_surgery(surgery);
                 self.days.push(day);
-                self.days.len() - 1
+                ScheduleToken {
+                    day_index: self.days.len() - 1,
+                    room_index,
+                    surgery_index,
+                }
             }
         }
     }
 
-    pub fn unschedule_surgery(&mut self, day: usize, surgery: &Surgery) {
+    pub fn unschedule_surgery(&mut self, schedule_token: ScheduleToken, surgery: &Surgery) {
+        let ScheduleToken{day_index, room_index, surgery_index} = schedule_token;
         self.weekly_surgeons
             .get_mut(&surgery.surgeon_id)
             .unwrap()
             .deallocate(&surgery);
 
-        self.days[day].unschedule_surgery(surgery);
+        self.days[day_index].unschedule_surgery(room_index, surgery_index, surgery);
 
-        if self.days[day].is_empty() {
-            self.days.remove(day);
+        if self.days[day_index].is_empty() {
+            self.days.remove(day_index);
         }
     }
 

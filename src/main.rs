@@ -5,8 +5,6 @@ use solver::Solver;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use num_cpus;
-
 fn main() {
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -24,7 +22,7 @@ fn main() {
     let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
     for _ in 0..5 {
         let (result, round, elapsed_time) = Solver::solve(
-            "./sample_data/Indefinidas - i8.csv",
+            "./sample_data/Indefinidas - i1.csv",
             cpus,
             3,
             max_days_waiting.clone(),
