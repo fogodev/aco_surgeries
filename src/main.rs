@@ -98,15 +98,15 @@ fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
     for (week_index, (week, _)) in schedule.into_iter().enumerate() {
         for (day_index, day) in week.days().iter().enumerate() {
             for (room_index, room) in day.rooms().iter().enumerate() {
-                let mut scheduled_time = 1;
-                for surgery in room.surgeries() {
+                for (surgery, (schedule, _)) in
+                    room.surgeries().iter().zip(room.scheduled_surgeons())
+                {
                     results.push((
                         surgery.id,
                         room_index + 1,
                         (day_index + 1) * (week_index + 1),
-                        scheduled_time,
+                        schedule.start,
                     ));
-                    scheduled_time += surgery.duration + 2;
                 }
             }
         }

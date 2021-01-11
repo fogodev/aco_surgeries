@@ -36,57 +36,53 @@ impl Day {
     }
 
     pub fn can_schedule_surgery(&self, surgery: &Surgery) -> bool {
-        self.daily_surgeons[&surgery.surgeon_id].has_availability(surgery)
+        let surgeon = &self.daily_surgeons[&surgery.surgeon_id];
+
+        surgeon.has_availability(surgery)
             && (self.rooms.len() < self.rooms.capacity()
                 || self
                     .rooms
                     .iter()
-                    .enumerate()
-                    .filter(|index_room| index_room.1.can_schedule_surgery(surgery))
-                    .any(|index_room| {
-                        self.rooms
-                            .iter()
-                            .enumerate()
-                            .filter(|index_other_room| index_other_room.0 != index_room.0)
-                            .any(|index_other_room| {
-                                index_other_room.1.can_schedule_surgeon_in_another_room(
-                                    &index_room.1.when_will_schedule(surgery),
-                                    surgery.surgeon_id,
-                                )
-                            })
-                    }))
+                    .filter(|room| room.can_schedule_surgery(surgery))
+                    .any(|room| surgeon.can_be_allocated(&room.when_will_schedule(surgery))))
     }
 
     pub fn schedule_surgery(&mut self, surgery: Surgery) -> (usize, usize) {
-        if !self.can_schedule_surgery(&surgery) {
-            panic!("Tried to allocate a surgery on a full day");
-        }
+        debug_assert!(
+            self.can_schedule_surgery(&surgery),
+            "Tried to allocate a surgery on a full day"
+        );
 
-        self.daily_surgeons
-            .get_mut(&surgery.surgeon_id)
-            .unwrap()
-            .allocate(&surgery);
+        let surgeon = self.daily_surgeons.get_mut(&surgery.surgeon_id).unwrap();
 
         // We already tested that we can schedule a surgery,
         // so if we have no room available, its because we can create a new room and schedule
         // surgery in this room
-        match (0..self.rooms.len())
-            .filter(|&index| self.rooms[index].can_schedule_surgery(&surgery))
-            .find(|&index| {
-                self.rooms
-                    .iter()
-                    .enumerate()
-                    .filter(|index_other_room| index_other_room.0 != index)
-                    .any(|index_other_room| {
-                        index_other_room.1.can_schedule_surgeon_in_another_room(
-                            &self.rooms[index].when_will_schedule(&surgery),
-                            surgery.surgeon_id,
-                        )
-                    })
-            }) {
-            Some(index_room) => (index_room, self.rooms[index_room].schedule_surgery(surgery)),
+        match self
+            .rooms
+            .iter_mut()
+            .enumerate()
+            .filter(|index_room| index_room.1.can_schedule_surgery(&surgery))
+            .map(|index_room| {
+                let to_be_scheduled = index_room.1.when_will_schedule(&surgery);
+                (index_room.0, index_room.1, to_be_scheduled)
+            })
+            .find(|index_room| surgeon.can_be_allocated(&index_room.2))
+        {
+            Some(index_room) => {
+                surgeon.allocate_by_schedule(index_room.2, surgery.clone());
+
+                (index_room.0, index_room.1.schedule_surgery(surgery))
+            }
             None => {
-                self.rooms.push(RoomPerDay::new(surgery));
+                surgeon.allocate_next(surgery.clone());
+                assert!(self.rooms.len() <= self.rooms.capacity());
+
+                self.rooms.push(RoomPerDay::new_by_given_schedule(
+                    surgery,
+                    surgeon.last_scheduled_time(),
+                ));
+
                 (self.rooms.len() - 1, 0)
             }
         }
