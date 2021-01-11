@@ -41,7 +41,20 @@ impl Day {
                 || self
                     .rooms
                     .iter()
-                    .any(|room| room.can_schedule_surgery(surgery)))
+                    .enumerate()
+                    .filter(|index_room| index_room.1.can_schedule_surgery(surgery))
+                    .any(|index_room| {
+                        self.rooms
+                            .iter()
+                            .enumerate()
+                            .filter(|index_other_room| index_other_room.0 != index_room.0)
+                            .any(|index_other_room| {
+                                index_other_room.1.can_schedule_surgeon_in_another_room(
+                                    &index_room.1.when_will_schedule(surgery),
+                                    surgery.surgeon_id,
+                                )
+                            })
+                    }))
     }
 
     pub fn schedule_surgery(&mut self, surgery: Surgery) -> (usize, usize) {
@@ -57,13 +70,21 @@ impl Day {
         // We already tested that we can schedule a surgery,
         // so if we have no room available, its because we can create a new room and schedule
         // surgery in this room
-        match self
-            .rooms
-            .iter_mut()
-            .enumerate()
-            .find(|index_room| index_room.1.can_schedule_surgery(&surgery))
-        {
-            Some(index_room) => (index_room.0, index_room.1.schedule_surgery(surgery)),
+        match (0..self.rooms.len())
+            .filter(|&index| self.rooms[index].can_schedule_surgery(&surgery))
+            .find(|&index| {
+                self.rooms
+                    .iter()
+                    .enumerate()
+                    .filter(|index_other_room| index_other_room.0 != index)
+                    .any(|index_other_room| {
+                        index_other_room.1.can_schedule_surgeon_in_another_room(
+                            &self.rooms[index].when_will_schedule(&surgery),
+                            surgery.surgeon_id,
+                        )
+                    })
+            }) {
+            Some(index_room) => (index_room, self.rooms[index_room].schedule_surgery(surgery)),
             None => {
                 self.rooms.push(RoomPerDay::new(surgery));
                 (self.rooms.len() - 1, 0)
@@ -83,5 +104,8 @@ impl Day {
             .deallocate(&surgery);
 
         self.rooms[room_index].unschedule_surgery(surgery_index, surgery);
+        if self.rooms[room_index].is_empty() {
+            self.rooms.remove(room_index);
+        }
     }
 }

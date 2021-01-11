@@ -8,8 +8,8 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 
-const INSTANCE_NAME: &str = "./sample_data/Indefinidas - i7.csv";
-const ROOMS_COUNT: usize = 3;
+const INSTANCE_NAME: &str = "./sample_data/Indefinidas - i1.csv";
+const ROOMS_COUNT: usize = 2;
 
 fn main() {
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
