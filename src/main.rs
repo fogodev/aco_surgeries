@@ -1,6 +1,7 @@
 mod solver;
 
 use crate::solver::week::Week;
+use structopt::StructOpt;
 use solver::surgery::{DaysWaiting, Priority};
 use solver::Solver;
 use std::collections::HashMap;
@@ -8,10 +9,66 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
 
-const INSTANCE_NAME: &str = "./sample_data/Indefinidas - i1.csv";
-const ROOMS_COUNT: usize = 2;
+#[derive(Debug, StructOpt)]
+#[structopt(name = "Ant Colony Optimization for surgery scheduling", about = "An ACO implementation to solve a surgery scheduling problem.")]
+struct Opt {
+
+    /// An instance csv file.
+    #[structopt(short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
+    instance_file: String,
+
+    /// Elitism factor on pheromones, change to 0 to not use it.
+    #[structopt(short = "el", long = "elitism", default_value="1.0")]
+    elitism_factor: f64,
+
+    /// Pheromones deposit rate.
+    #[structopt(short = "d", long = "deposit", default_value = "10000.0")]
+    deposit: f64,
+
+    /// Pheromones evaporation rate.
+    #[structopt(long = "evaporation", default_value = "0.2")]
+    evaporation: f64,
+
+    /// Number of surgery rooms.
+    #[structopt(short = "r", long = "rooms", default_value = "1")]
+    rooms: usize,
+
+    /// Alpha parameter to control pheromones intensity.
+    #[structopt(short = "a", long = "alpha", default_value = "1.0")]
+    alpha: f64,
+
+    /// Beta parameter to control heuristic intensity.
+    #[structopt(short = "b", long = "beta", default_value = "1.0")]
+    beta: f64,
+
+    /// Max number of rounds to run.
+    #[structopt(long = "max_rounds", default_value = "1000")]
+    max_rounds: u32,
+
+    /// Max number of rounds to run without improvement.
+    #[structopt(long = "max_rounds_improv", default_value = "500")]
+    max_rounds_improv: u32,
+
+    /// Choose to run ants in parallel or not.
+    #[structopt(short = "p", long = "in_parallel")]
+    in_parallel: bool,
+}
 
 fn main() {
+    let opt = Opt::from_args();
+    println!("{:?}", opt);
+
+    let instance_file = &opt.instance_file;
+    let in_parallel = opt.in_parallel;
+    let max_rounds = opt.max_rounds;
+    let max_rounds_improv = opt.max_rounds_improv;
+    let elitism_factor = opt.elitism_factor;
+    let deposit = opt.deposit;
+    let evaporation = opt.evaporation;
+    let rooms = opt.rooms;
+    let alpha = opt.alpha;
+    let beta = opt.beta;
+
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
         .cloned()
@@ -30,19 +87,19 @@ fn main() {
     let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
     for _ in 0..5 {
         let (result, round, schedule, elapsed_time) = Solver::solve(
-            INSTANCE_NAME,
+            instance_file,
             cpus,
-            ROOMS_COUNT,
+            rooms,
             max_days_waiting.clone(),
             priority_penalties.clone(),
-            2.0,
-            1.0,
-            1.0,
-            10000.0,
-            0.2,
-            1000,
-            500,
-            false,
+            alpha,
+            beta,
+            elitism_factor,
+            deposit,
+            evaporation,
+            max_rounds,
+            max_rounds_improv,
+            in_parallel,
         );
         if result < best_result {
             best_result = result;
@@ -84,7 +141,7 @@ fn main() {
             .sqrt()
     );
 
-    schedule_to_csv(INSTANCE_NAME, best_scheduling);
+    schedule_to_csv(instance_file, best_scheduling);
 }
 
 fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
