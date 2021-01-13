@@ -8,18 +8,17 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
-use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Ant Colony Optimization for surgery scheduling", about = "An ACO implementation to solve a surgery scheduling problem.")]
 struct Opt {
 
     /// An instance csv file.
-    #[structopt(parse(from_os_str), short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
-    instance_file: PathBuf,
+    #[structopt(short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
+    instance_file: String,
 
     /// Elitism factor on pheromones, change to 0 to not use it.
-    #[structopt(short = "el", long = "elitism")]
+    #[structopt(short = "el", long = "elitism", default_value="1.0")]
     elitism_factor: f64,
 
     /// Pheromones deposit rate.
@@ -55,14 +54,11 @@ struct Opt {
     in_parallel: bool,
 }
 
-const INSTANCE_NAME: &str = "./sample_data/Indefinidas - i1.csv";
-const ROOMS_COUNT: usize = 2;
-
 fn main() {
     let opt = Opt::from_args();
     println!("{:?}", opt);
 
-    let instance_file = opt.instance_file;
+    let instance_file = &opt.instance_file;
     let in_parallel = opt.in_parallel;
     let max_rounds = opt.max_rounds;
     let max_rounds_improv = opt.max_rounds_improv;
@@ -91,9 +87,9 @@ fn main() {
     let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
     for _ in 0..5 {
         let (result, round, schedule, elapsed_time) = Solver::solve(
-            INSTANCE_NAME,
+            instance_file,
             cpus,
-            ROOMS_COUNT,
+            rooms,
             max_days_waiting.clone(),
             priority_penalties.clone(),
             alpha,
@@ -145,7 +141,7 @@ fn main() {
             .sqrt()
     );
 
-    schedule_to_csv(INSTANCE_NAME, best_scheduling);
+    schedule_to_csv(instance_file, best_scheduling);
 }
 
 fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
