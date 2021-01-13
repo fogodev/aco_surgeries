@@ -8,30 +8,31 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
+use std::path::PathBuf;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Ant Colony Optimization for surgery scheduling", about = "An ACO implementation to solve a surgery scheduling problem.")]
 struct Opt {
 
     /// An instance csv file.
-    #[structopt(short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
-    instance_file: String,
+    #[structopt(parse(from_os_str), short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
+    instance_file: PathBuf,
 
-    /// Elitism factor on pheromones, change to false to not use it.
+    /// Elitism factor on pheromones, change to 0 to not use it.
     #[structopt(short = "el", long = "elitism")]
-    elitism_factor: bool,
+    elitism_factor: f64,
 
     /// Pheromones deposit rate.
     #[structopt(short = "d", long = "deposit", default_value = "10000.0")]
     deposit: f64,
 
     /// Pheromones evaporation rate.
-    #[structopt(short = "ev", long = "evaporation", default_value = "0.2")]
+    #[structopt(long = "evaporation", default_value = "0.2")]
     evaporation: f64,
 
     /// Number of surgery rooms.
     #[structopt(short = "r", long = "rooms", default_value = "1")]
-    rooms: u32,
+    rooms: usize,
 
     /// Alpha parameter to control pheromones intensity.
     #[structopt(short = "a", long = "alpha", default_value = "1.0")]
@@ -41,15 +42,15 @@ struct Opt {
     #[structopt(short = "b", long = "beta", default_value = "1.0")]
     beta: f64,
 
-    /// Max number of rounds to
-    #[structopt(short = "max_r", long = "max_rounds", default_value = "1000")]
+    /// Max number of rounds to run.
+    #[structopt(long = "max_rounds", default_value = "1000")]
     max_rounds: u32,
 
-    /// Max number of rounds to run without improvement
-    #[structopt(short = "max_r_imp", long = "max_rounds_improv", default_value = "500")]
+    /// Max number of rounds to run without improvement.
+    #[structopt(long = "max_rounds_improv", default_value = "500")]
     max_rounds_improv: u32,
 
-    /// Run ants in parallel
+    /// Choose to run ants in parallel or not.
     #[structopt(short = "p", long = "in_parallel")]
     in_parallel: bool,
 }
@@ -60,6 +61,17 @@ const ROOMS_COUNT: usize = 2;
 fn main() {
     let opt = Opt::from_args();
     println!("{:?}", opt);
+
+    let instance_file = opt.instance_file;
+    let in_parallel = opt.in_parallel;
+    let max_rounds = opt.max_rounds;
+    let max_rounds_improv = opt.max_rounds_improv;
+    let elitism_factor = opt.elitism_factor;
+    let deposit = opt.deposit;
+    let evaporation = opt.evaporation;
+    let rooms = opt.rooms;
+    let alpha = opt.alpha;
+    let beta = opt.beta;
 
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
