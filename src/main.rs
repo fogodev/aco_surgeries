@@ -5,6 +5,7 @@ use solver::surgery::{DaysWaiting, Priority};
 use solver::Solver;
 use std::collections::HashMap;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Duration;
 use structopt::StructOpt;
@@ -147,7 +148,22 @@ fn main() {
             .sqrt()
     );
 
+    save_durations(instance_file, durations, in_parallel);
+
     schedule_to_csv(instance_file, best_scheduling);
+}
+
+fn save_durations(instance_name: &str, durations: Vec<Duration>, in_parallel: bool) {
+    let name = instance_name.split(".csv").next().unwrap();
+    let solution_name = format!("{}_durations_par_{}.txt", name, in_parallel);
+    let mut file = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(solution_name)
+        .expect("Unable to create txt file");
+    durations.into_iter().for_each(|duration| {
+        write!(file, "{:#?}\n", duration.as_secs_f64()).expect("Failed to write duration");
+    })
 }
 
 fn schedule_to_csv(instance_name: &str, schedule: Vec<(Week, f64)>) {
