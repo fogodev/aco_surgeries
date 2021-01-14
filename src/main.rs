@@ -16,6 +16,10 @@ use structopt::StructOpt;
     about = "An ACO implementation to solve a surgery scheduling problem."
 )]
 struct Opt {
+    /// Number of executions of ACO.
+    #[structopt(short = "n", long = "n_executions", default_value = "5")]
+    n_executions: usize,
+
     /// An instance csv file.
     #[structopt(
         short = "f",
@@ -65,6 +69,7 @@ fn main() {
     let opt = Opt::from_args();
     println!("{:?}", opt);
 
+    let n_executions = opt.n_executions;
     let instance_file = &opt.instance_file;
     let in_parallel = opt.in_parallel;
     let max_rounds = opt.max_rounds;
@@ -91,8 +96,8 @@ fn main() {
     let mut best_result = f64::INFINITY;
     let mut best_scheduling = Vec::new();
 
-    let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
-    for _ in 0..5 {
+    let (mut results, mut durations) = (Vec::with_capacity(n_executions), Vec::with_capacity(n_executions));
+    for _ in 0..n_executions {
         let (result, round, schedule, elapsed_time) = Solver::solve(
             instance_file,
             cpus,
@@ -121,11 +126,11 @@ fn main() {
     }
     results.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let minimum_result = results[0];
-    let median_result = results[2];
-    let maximum_result = results[4];
+    let median_result = (results[(n_executions-1)/2] + results[n_executions/2]) / 2.0;
+    let maximum_result = results[n_executions-1];
 
-    let results_mean = results.iter().sum::<f64>() / 5.0;
-    let durations_mean = durations.iter().sum::<Duration>() / 5;
+    let results_mean = results.iter().sum::<f64>() / (n_executions as f64);
+    let durations_mean = durations.iter().sum::<Duration>() / (n_executions as u32);
 
     println!(
         "Minimum Result: {}; Median: {}; Maximum Result: {};\nMean Objective Function: {} ± {}; Mean Elapsed Time: {:#?} ± {:#?}s;",
@@ -136,7 +141,7 @@ fn main() {
         (results
             .iter()
             .fold(0.0, |sum, &value| sum + (value - results_mean).powi(2))
-            / 4.0)
+            / (n_executions as f64 - 1.0))
             .sqrt(),
         durations_mean,
         (durations
@@ -144,7 +149,7 @@ fn main() {
             .map(|duration| duration.as_secs_f64())
             .fold(0.0, |sum, value| sum
                 + (value - durations_mean.as_secs_f64()).powi(2))
-            / 4.0)
+            / (n_executions as f64 - 1.0))
             .sqrt()
     );
 
