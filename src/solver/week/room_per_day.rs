@@ -13,18 +13,6 @@ pub struct RoomPerDay {
 }
 
 impl RoomPerDay {
-    pub fn new(first_surgery: Surgery) -> Self {
-        let surgery_duration = first_surgery.duration;
-        let surgery_speciality = first_surgery.speciality;
-        let surgeon_id = first_surgery.surgeon_id;
-        Self {
-            surgeries: vec![first_surgery],
-            scheduled_surgeons: vec![(1..(2 + surgery_duration), surgeon_id)],
-            speciality: surgery_speciality,
-            current_used_slots: 2 + surgery_duration,
-        }
-    }
-
     pub fn new_by_given_schedule(surgery: Surgery, schedule: Range<u8>) -> Self {
         let surgery_duration = surgery.duration;
         let surgery_speciality = surgery.speciality;

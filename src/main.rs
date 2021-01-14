@@ -1,24 +1,30 @@
 mod solver;
 
 use crate::solver::week::Week;
-use structopt::StructOpt;
 use solver::surgery::{DaysWaiting, Priority};
 use solver::Solver;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "Ant Colony Optimization for surgery scheduling", about = "An ACO implementation to solve a surgery scheduling problem.")]
+#[structopt(
+    name = "Ant Colony Optimization for surgery scheduling",
+    about = "An ACO implementation to solve a surgery scheduling problem."
+)]
 struct Opt {
-
     /// An instance csv file.
-    #[structopt(short = "f", long = "file", default_value = "./sample_data/Indefinidas - i1.csv")]
+    #[structopt(
+        short = "f",
+        long = "file",
+        default_value = "./sample_data/Indefinidas - i1.csv"
+    )]
     instance_file: String,
 
     /// Elitism factor on pheromones, change to 0 to not use it.
-    #[structopt(short = "el", long = "elitism", default_value="1.0")]
+    #[structopt(short = "el", long = "elitism", default_value = "1.0")]
     elitism_factor: f64,
 
     /// Pheromones deposit rate.
@@ -80,7 +86,7 @@ fn main() {
 
     let cpus = num_cpus::get_physical();
 
-    println!("Running with {} ants in parallel;", cpus);
+    println!("Running with {} ants; Parallel = {};", cpus, in_parallel);
     let mut best_result = f64::INFINITY;
     let mut best_scheduling = Vec::new();
 
@@ -121,10 +127,10 @@ fn main() {
     let durations_mean = durations.iter().sum::<Duration>() / 5;
 
     println!(
-        "Minimum Result: {}; Maximum Result: {}; Median: {};\nMean Objective Function: {} ± {}; Mean Elapsed Time: {:#?} ± {:#?}s;",
+        "Minimum Result: {}; Median: {}; Maximum Result: {};\nMean Objective Function: {} ± {}; Mean Elapsed Time: {:#?} ± {:#?}s;",
         minimum_result,
-        maximum_result,
         median_result,
+        maximum_result,
         results_mean,
         (results
             .iter()
