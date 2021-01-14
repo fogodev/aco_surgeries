@@ -152,12 +152,12 @@ fn main() {
 
 fn save_durations(instance_name: &str, durations: Vec<Duration>, ants_count: usize) {
     let name = instance_name.split(".csv").next().unwrap();
-    let solution_name = format!("{}_durations_{}_ants.txt", name, ants_count);
+    let solution_name = format!("{}_durations_{}_ants.dat", name, ants_count);
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)
         .open(solution_name)
-        .expect("Unable to create txt file");
+        .expect("Unable to create dat file");
     durations.into_iter().for_each(|duration| {
         write!(file, "{:#?}\n", duration.as_secs_f64()).expect("Failed to write duration");
     })
