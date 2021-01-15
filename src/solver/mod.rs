@@ -21,6 +21,7 @@ pub struct Solver {
 impl Solver {
     pub fn solve<P: AsRef<Path> + Debug + Copy>(
         instance_filename: P,
+        threads_count: usize,
         ants_count: usize,
         rooms_count: usize,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
@@ -37,6 +38,7 @@ impl Solver {
 
         let mut solver = Self {
             ant_colony: AntColony::new(
+                threads_count,
                 ants_count,
                 rooms_count,
                 alpha,
@@ -59,10 +61,13 @@ impl Solver {
         for round in 1..(max_rounds_count + 1) {
             let (objective_function_result, scheduling, elapsed_time) =
                 solver.ant_colony.round(round);
-            println!(
-                "Round:\t{:5};\tObjective Function:\t{:15};\tElapsed Time:\t{:#?}",
-                round, objective_function_result, elapsed_time
-            );
+
+            if round % 100 == 0 {
+                println!(
+                    "Round:\t{:5};\tObjective Function:\t{:15};\tElapsed Time:\t{:#?}",
+                    round, objective_function_result, elapsed_time
+                );
+            }
             if objective_function_result < best_objective_function_result {
                 best_objective_function_result = objective_function_result;
                 best_objective_function_round = round;

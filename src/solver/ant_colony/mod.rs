@@ -1,6 +1,6 @@
 mod ant;
 
-use crossbeam::channel::{bounded, Receiver, Sender};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use std::collections::{HashMap, HashSet};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -19,7 +19,8 @@ struct AntManager {
 }
 
 pub struct AntColony {
-    ants: Vec<AntManager>,
+    ants_threads: Vec<AntManager>,
+    ants_count: usize,
     pheromones: HashMap<(Surgery, Surgery), f64>,
     pheromone_deposit_rate: f64,
     pheromone_evaporation_rate: f64,
@@ -28,6 +29,7 @@ pub struct AntColony {
 
 impl AntColony {
     pub fn new(
+        treads_count: usize,
         ants_count: usize,
         rooms_count: usize,
         alpha: f64,
@@ -48,10 +50,10 @@ impl AntColony {
         let priority_penalties = Arc::new(priority_penalties);
         let surgeons_ids = Arc::new(surgeons_ids);
 
-        let ants = (0..ants_count)
+        let ants = (0..treads_count)
             .map(|_| {
-                let (send_to_ant, receive_in_ant) = bounded(1);
-                let (send_ant_response, receive_ant_response) = bounded(1);
+                let (send_to_ant, receive_in_ant) = unbounded();
+                let (send_ant_response, receive_ant_response) = unbounded();
                 let surgeries_bin = surgeries_bin.clone();
                 let surgeons_ids = surgeons_ids.clone();
                 let max_days_waiting = max_days_waiting.clone();
@@ -80,7 +82,8 @@ impl AntColony {
             .collect::<Vec<AntManager>>();
 
         Self {
-            ants,
+            ants_threads: ants,
+            ants_count,
             pheromones: HashMap::new(),
             pheromone_deposit_rate,
             pheromone_evaporation_rate,
@@ -91,21 +94,30 @@ impl AntColony {
     pub fn round(&mut self, round_number: u32) -> (f64, Vec<(Week, f64)>, Duration) {
         let now = Instant::now();
 
-        let pheromones = Arc::new(self.pheromones.clone());
+        let mut pheromones = HashMap::new();
+        std::mem::swap(&mut pheromones, &mut self.pheromones);
 
-        self.ants.iter().for_each(|ant_manager| {
-            ant_manager
-                .send_to_ant
-                .send(Some(AntFindSolutionData {
-                    pheromones: pheromones.clone(),
-                    round_number,
-                }))
-                .expect("Failed to sent data to ant");
-        });
+        let pheromones = Arc::new(pheromones);
+
+        self.ants_threads
+            .iter()
+            .cycle()
+            .take(self.ants_count)
+            .for_each(|ant_manager| {
+                ant_manager
+                    .send_to_ant
+                    .send(Some(AntFindSolutionData {
+                        pheromones: Arc::downgrade(&pheromones),
+                        round_number,
+                    }))
+                    .expect("Failed to sent data to ant");
+            });
 
         let responses = self
-            .ants
+            .ants_threads
             .iter()
+            .cycle()
+            .take(self.ants_count)
             .map(|ant_manager| {
                 ant_manager
                     .receive_ant_response
@@ -113,6 +125,8 @@ impl AntColony {
                     .expect("Failed to receive ant response")
             })
             .collect::<Vec<_>>();
+
+        self.pheromones = Arc::try_unwrap(pheromones).unwrap();
 
         let mut pheromones_by_path = HashMap::<(Surgery, Surgery), f64>::new();
         let (mut best_objective_function, mut best_scheduling, mut best_paths) =
@@ -169,7 +183,7 @@ impl AntColony {
 
     pub fn kill_ants(&mut self) {
         let mut ants_to_kill = Vec::new();
-        std::mem::swap(&mut ants_to_kill, &mut self.ants);
+        std::mem::swap(&mut ants_to_kill, &mut self.ants_threads);
 
         ants_to_kill.into_iter().for_each(|ant_manager| {
             ant_manager.send_to_ant.send(None).unwrap();

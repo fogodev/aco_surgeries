@@ -25,12 +25,16 @@ struct Opt {
     instance_file: String,
 
     /// Elitism factor on pheromones, change to 0 to not use it.
-    #[structopt(short = "el", long = "elitism", default_value = "1.0")]
+    #[structopt(short = "e", long = "elitism", default_value = "1.0")]
     elitism_factor: f64,
 
     /// Ants count, default = 8.
-    #[structopt(short = "a", long = "ants_count", default_value = "8")]
+    #[structopt(short = "n", long = "ants_count", default_value = "8")]
     ants_count: usize,
+
+    /// Threads count, default = 8.
+    #[structopt(short = "t", long = "threads_count", default_value = "8")]
+    threads_count: usize,
 
     /// Pheromones deposit rate.
     #[structopt(short = "d", long = "deposit", default_value = "10000.0")]
@@ -75,6 +79,7 @@ fn main() {
     let alpha = opt.alpha;
     let beta = opt.beta;
     let ants_count = opt.ants_count;
+    let threads_count = opt.threads_count;
 
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -85,14 +90,18 @@ fn main() {
         .cloned()
         .collect::<HashMap<Priority, DaysWaiting>>();
 
-    println!("Running with {} ants", ants_count);
+    println!(
+        "Running with {} ants on {} threads",
+        ants_count, threads_count
+    );
     let mut best_result = f64::INFINITY;
     let mut best_scheduling = Vec::new();
 
     let (mut results, mut durations) = (Vec::with_capacity(5), Vec::with_capacity(5));
-    for _ in 0..5 {
+    for run in 1..=5 {
         let (result, round, schedule, elapsed_time) = Solver::solve(
             instance_file,
+            threads_count,
             ants_count,
             rooms,
             max_days_waiting.clone(),
@@ -110,8 +119,8 @@ fn main() {
             best_scheduling = schedule;
         }
         println!(
-            "Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
-            result, round, elapsed_time
+            "Run: {}; Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
+            run, result, round, elapsed_time
         );
         results.push(result);
         durations.push(elapsed_time)
@@ -145,14 +154,22 @@ fn main() {
             .sqrt()
     );
 
-    save_durations(instance_file, durations, ants_count);
+    save_durations(instance_file, durations, ants_count, threads_count);
 
     schedule_to_csv(instance_file, best_scheduling);
 }
 
-fn save_durations(instance_name: &str, durations: Vec<Duration>, ants_count: usize) {
+fn save_durations(
+    instance_name: &str,
+    durations: Vec<Duration>,
+    ants_count: usize,
+    threads_count: usize,
+) {
     let name = instance_name.split(".csv").next().unwrap();
-    let solution_name = format!("{}_durations_{}_ants.dat", name, ants_count);
+    let solution_name = format!(
+        "{}_durations_{}_ants_{}_threads.dat",
+        name, ants_count, threads_count
+    );
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)

@@ -1,16 +1,16 @@
 use crossbeam::channel::{Receiver, Sender};
-use rand::distributions::{Distribution, WeightedIndex};
 use rand::prelude::SliceRandom;
-use rand::rngs::ThreadRng;
+use rand::rngs::SmallRng;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use crate::solver::surgeon::SurgeonID;
 use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use crate::solver::week::Week;
+use rand::SeedableRng;
 
 pub struct AntFindSolutionData {
-    pub pheromones: Arc<HashMap<(Surgery, Surgery), f64>>,
+    pub pheromones: Weak<HashMap<(Surgery, Surgery), f64>>,
     pub round_number: u32,
 }
 
@@ -29,7 +29,7 @@ pub struct Ant {
     surgeons_ids: Arc<Vec<SurgeonID>>,
     max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
     priority_penalties: Arc<HashMap<Priority, u32>>,
-    random_number_generator: ThreadRng,
+    random_number_generator: SmallRng,
     receive_work: Receiver<Option<AntFindSolutionData>>,
     send_solution: Sender<AntSolution>,
 }
@@ -56,7 +56,7 @@ impl Ant {
             surgeons_ids: surgeons_ids.clone(),
             max_days_waiting,
             priority_penalties,
-            random_number_generator: Default::default(),
+            random_number_generator: SmallRng::from_entropy(),
             receive_work,
             send_solution,
         }
@@ -68,20 +68,15 @@ impl Ant {
         current_week: &mut Option<Week>,
         current_surgery: &mut Option<Surgery>,
     ) {
-        let surgeries_and_weights = surgeries_bin
+        let surgeries = surgeries_bin
             .iter()
-            .map(|surgery| (surgery, if surgery.priority == 1 { 2.0 } else { 1.0 }))
-            .collect::<Vec<(&Surgery, f64)>>();
+            .filter(|surgery| surgery.priority == 1)
+            .collect::<Vec<_>>();
 
-        let dist = WeightedIndex::new(
-            surgeries_and_weights
-                .iter()
-                .map(|surgery_weight| surgery_weight.1),
-        )
-        .unwrap();
-
-        let chosen = surgeries_and_weights[dist.sample(&mut self.random_number_generator)]
-            .0
+        let chosen = surgeries
+            .choose(&mut self.random_number_generator)
+            .unwrap()
+            .clone()
             .clone();
 
         if let Some(ref mut week) = current_week {
@@ -96,7 +91,7 @@ impl Ant {
     fn choose_next_surgery(
         &mut self,
         round_number: u32,
-        pheromones: Arc<HashMap<(Surgery, Surgery), f64>>,
+        pheromones: Weak<HashMap<(Surgery, Surgery), f64>>,
         surgeries_bin: &mut HashSet<Surgery>,
         path: &mut Vec<(Surgery, Surgery)>,
         current_week: &mut Option<Week>,
@@ -104,6 +99,8 @@ impl Ant {
         visited_surgeries: &mut HashSet<Surgery>,
         current_surgery: &mut Option<Surgery>,
     ) {
+        let pheromones = pheromones.upgrade().unwrap();
+
         // First surgery for this ant
         if current_surgery.is_none() {
             self.choose_first_surgery(surgeries_bin, current_week, current_surgery)
@@ -220,6 +217,8 @@ impl Ant {
         }
 
         visited_surgeries.insert(current_surgery.clone().unwrap());
+
+        drop(pheromones);
     }
 
     pub fn work(mut self) {
