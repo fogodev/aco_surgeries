@@ -8,8 +8,11 @@ edition = "2018"
 
 [dependencies]
 csv = "1.1"
-rand = "0.8.1"
-indoc = "1.0"
-rayon = "1.5"
-num_cpus = "1.13"
+rand = {version = "0.8.1", features=["default", "small_rng"]}
 structopt = "0.3.21"
+crossbeam = "0.8"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"

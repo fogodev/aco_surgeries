@@ -29,8 +29,16 @@ struct Opt {
     instance_file: String,
 
     /// Elitism factor on pheromones, change to 0 to not use it.
-    #[structopt(short = "el", long = "elitism", default_value = "1.0")]
+    #[structopt(short = "e", long = "elitism", default_value = "1.0")]
     elitism_factor: f64,
+
+    /// Ants count, default = 8.
+    #[structopt(short = "n", long = "ants_count", default_value = "8")]
+    ants_count: usize,
+
+    /// Threads count, default = 8.
+    #[structopt(short = "t", long = "threads_count", default_value = "8")]
+    threads_count: usize,
 
     /// Pheromones deposit rate.
     #[structopt(short = "d", long = "deposit", default_value = "10000.0")]
@@ -59,10 +67,6 @@ struct Opt {
     /// Max number of rounds to run without improvement.
     #[structopt(long = "max_rounds_improv", default_value = "500")]
     max_rounds_improv: u32,
-
-    /// Choose to run ants in parallel or not.
-    #[structopt(short = "p", long = "in_parallel")]
-    in_parallel: bool,
 }
 
 fn main() {
@@ -71,7 +75,6 @@ fn main() {
 
     let n_executions = opt.n_executions;
     let instance_file = &opt.instance_file;
-    let in_parallel = opt.in_parallel;
     let max_rounds = opt.max_rounds;
     let max_rounds_improv = opt.max_rounds_improv;
     let elitism_factor = opt.elitism_factor;
@@ -80,6 +83,8 @@ fn main() {
     let rooms = opt.rooms;
     let alpha = opt.alpha;
     let beta = opt.beta;
+    let ants_count = opt.ants_count;
+    let threads_count = opt.threads_count;
 
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -90,17 +95,19 @@ fn main() {
         .cloned()
         .collect::<HashMap<Priority, DaysWaiting>>();
 
-    let cpus = num_cpus::get_physical();
-
-    println!("Running with {} ants; Parallel = {};", cpus, in_parallel);
+    println!(
+        "Running with {} ants on {} threads",
+        ants_count, threads_count
+    );
     let mut best_result = f64::INFINITY;
     let mut best_scheduling = Vec::new();
 
     let (mut results, mut durations) = (Vec::with_capacity(n_executions), Vec::with_capacity(n_executions));
-    for _ in 0..n_executions {
+    for _ in 1..=n_executions {
         let (result, round, schedule, elapsed_time) = Solver::solve(
             instance_file,
-            cpus,
+            threads_count,
+            ants_count,
             rooms,
             max_days_waiting.clone(),
             priority_penalties.clone(),
@@ -111,15 +118,14 @@ fn main() {
             evaporation,
             max_rounds,
             max_rounds_improv,
-            in_parallel,
         );
         if result < best_result {
             best_result = result;
             best_scheduling = schedule;
         }
         println!(
-            "Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
-            result, round, elapsed_time
+            "Run: {}; Best objective function result: {}; Round: {}; Elapsed time: {:#?}",
+            run, result, round, elapsed_time
         );
         results.push(result);
         durations.push(elapsed_time)
@@ -153,14 +159,22 @@ fn main() {
             .sqrt()
     );
 
-    save_durations(instance_file, durations, in_parallel);
+    save_durations(instance_file, durations, ants_count, threads_count);
 
     schedule_to_csv(instance_file, best_scheduling);
 }
 
-fn save_durations(instance_name: &str, durations: Vec<Duration>, in_parallel: bool) {
+fn save_durations(
+    instance_name: &str,
+    durations: Vec<Duration>,
+    ants_count: usize,
+    threads_count: usize,
+) {
     let name = instance_name.split(".csv").next().unwrap();
-    let solution_name = format!("{}_durations_par_{}.dat", name, in_parallel);
+    let solution_name = format!(
+        "{}_durations_{}_ants_{}_threads.dat",
+        name, ants_count, threads_count
+    );
     let mut file = OpenOptions::new()
         .append(true)
         .create(true)

@@ -21,6 +21,7 @@ pub struct Solver {
 impl Solver {
     pub fn solve<P: AsRef<Path> + Debug + Copy>(
         instance_filename: P,
+        threads_count: usize,
         ants_count: usize,
         rooms_count: usize,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
@@ -32,12 +33,12 @@ impl Solver {
         pheromone_evaporation_rate: f64,
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
-        in_parallel: bool,
     ) -> (f64, u32, Vec<(Week, f64)>, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
         let mut solver = Self {
             ant_colony: AntColony::new(
+                threads_count,
                 ants_count,
                 rooms_count,
                 alpha,
@@ -49,7 +50,6 @@ impl Solver {
                 surgeries,
                 max_days_waiting,
                 priority_penalties,
-                in_parallel,
             ),
         };
 
@@ -61,10 +61,13 @@ impl Solver {
         for round in 1..(max_rounds_count + 1) {
             let (objective_function_result, scheduling, elapsed_time) =
                 solver.ant_colony.round(round);
-            println!(
-                "Round: {}; Objective Function: {}; Elapsed Time: {:#?}",
-                round, objective_function_result, elapsed_time
-            );
+
+            if round % 100 == 0 {
+                println!(
+                    "Round:\t{:5};\tObjective Function:\t{:15};\tElapsed Time:\t{:#?}",
+                    round, objective_function_result, elapsed_time
+                );
+            }
             if objective_function_result < best_objective_function_result {
                 best_objective_function_result = objective_function_result;
                 best_objective_function_round = round;
@@ -74,6 +77,8 @@ impl Solver {
                 break;
             }
         }
+
+        solver.ant_colony.kill_ants();
 
         (
             best_objective_function_result,
