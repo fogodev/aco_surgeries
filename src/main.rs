@@ -103,7 +103,7 @@ fn main() {
     let mut best_scheduling = Vec::new();
 
     let (mut results, mut durations) = (Vec::with_capacity(n_executions), Vec::with_capacity(n_executions));
-    for _ in 1..=n_executions {
+    for run in 1..=n_executions {
         let (result, round, schedule, elapsed_time) = Solver::solve(
             instance_file,
             threads_count,
