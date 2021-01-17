@@ -98,7 +98,7 @@ fn main() {
     let priority_penalties = [(1, 90), (2, 20), (3, 5), (4, 1)]
         .iter()
         .cloned()
-        .collect::<HashMap<Priority, DaysWaiting>>();
+        .collect::<HashMap<Priority, u32>>();
 
     println!(
         "Running with {} ants on {} threads",
@@ -107,7 +107,10 @@ fn main() {
     let mut best_result = f64::INFINITY;
     let mut best_scheduling = Vec::new();
 
-    let (mut results, mut durations) = (Vec::with_capacity(n_executions), Vec::with_capacity(n_executions));
+    let (mut results, mut durations) = (
+        Vec::with_capacity(n_executions),
+        Vec::with_capacity(n_executions),
+    );
     for run in 1..=n_executions {
         let (result, round, schedule, elapsed_time) = Solver::solve(
             instance_file,
@@ -137,8 +140,8 @@ fn main() {
     }
     results.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let minimum_result = results[0];
-    let median_result = (results[(n_executions-1)/2] + results[n_executions/2]) / 2.0;
-    let maximum_result = results[n_executions-1];
+    let median_result = (results[(n_executions - 1) / 2] + results[n_executions / 2]) / 2.0;
+    let maximum_result = results[n_executions - 1];
 
     let results_mean = results.iter().sum::<f64>() / (n_executions as f64);
     let durations_mean = durations.iter().sum::<Duration>() / (n_executions as u32);

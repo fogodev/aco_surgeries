@@ -14,7 +14,7 @@ pub struct SurgeonWeekly {
 impl SurgeonWeekly {
     pub fn new() -> Self {
         Self {
-            max_week_time: 100,
+            max_week_time: 110,
             current_week_time: 0,
         }
     }
@@ -54,7 +54,7 @@ pub struct SurgeonDaily {
 impl SurgeonDaily {
     pub fn new() -> Self {
         Self {
-            max_day_time: 24,
+            max_day_time: 26,
             current_day_time: 0,
             scheduled_times: vec![],
         }

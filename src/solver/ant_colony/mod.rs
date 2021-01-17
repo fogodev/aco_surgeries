@@ -129,19 +129,22 @@ impl AntColony {
         self.pheromones = Arc::try_unwrap(pheromones).unwrap();
 
         let mut pheromones_by_path = HashMap::<(Surgery, Surgery), f64>::new();
-        let (mut best_objective_function, mut best_scheduling, mut best_paths) =
-            (f64::INFINITY, Default::default(), Default::default());
+        let mut best_objective_function = f64::INFINITY;
+        let mut best_index = 0;
 
-        responses.iter().for_each(|result| {
+        responses.iter().enumerate().for_each(|(index, result)| {
             if result.objective_function_result < best_objective_function {
                 best_objective_function = result.objective_function_result;
-                best_scheduling = result.all_weeks_results.clone();
-                best_paths = result.followed_path.clone();
+                best_index = index;
             }
         });
 
-        let best_paths_set = best_paths
-            .into_iter()
+        let best_scheduling = responses[best_index].all_weeks_results.clone();
+
+        let best_paths_set = responses[best_index]
+            .followed_path
+            .iter()
+            .cloned()
             .collect::<HashSet<(Surgery, Surgery)>>();
 
         let elitism_factor = self.elitism_factor;
@@ -173,9 +176,9 @@ impl AntColony {
 
         self.pheromones
             .iter_mut()
-            .filter(|entry| !updated_paths.contains(&entry.0))
-            .for_each(|entry| {
-                *entry.1 *= 1.0 - pheromone_evaporation_rate;
+            .filter(|(key, _value)| !updated_paths.contains(key))
+            .for_each(|(_key, value)| {
+                *value *= 1.0 - pheromone_evaporation_rate;
             });
 
         (best_objective_function, best_scheduling, now.elapsed())
