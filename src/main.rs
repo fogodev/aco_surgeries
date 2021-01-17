@@ -67,6 +67,10 @@ struct Opt {
     /// Max number of rounds to run without improvement.
     #[structopt(long = "max_rounds_improv", default_value = "500")]
     max_rounds_improv: u32,
+
+    /// Flag to save or not durations on .dat file.
+    #[structopt(short = "s", long = "save_durations")]
+    should_save_durations: bool,
 }
 
 fn main() {

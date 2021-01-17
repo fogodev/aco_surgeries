@@ -120,38 +120,6 @@ impl Ant {
 
             let inner_current_surgery = current_surgery.take().unwrap();
 
-            let heuristic_values = available_surgeries
-                .iter()
-                .map(|surgery| {
-                    let key = (inner_current_surgery.clone(), surgery.clone());
-                    let pheromone = if pheromones.contains_key(&key) {
-                        pheromones[&key]
-                    } else {
-                        (1.0 - self.pheromone_evaporation_rate).powf((round_number - 1) as f64)
-                    };
-                    let schedule_token = inner_current_week.schedule_surgery(surgery.clone());
-                    let objective_function_with_surgery = inner_current_week
-                        .calculate_objective_function(
-                            &surgeries_bin,
-                            self.max_days_waiting.clone(),
-                            self.priority_penalties.clone(),
-                            week_index,
-                        );
-                    inner_current_week.unschedule_surgery(schedule_token, surgery);
-                    let heuristic = current_objective_function - objective_function_with_surgery;
-
-                    pheromone.powf(self.alpha) * heuristic.powf(self.beta)
-                })
-                .collect::<Vec<f64>>();
-
-            let smallest_value = heuristic_values
-                .iter()
-                .fold(f64::INFINITY, |a, &b| a.min(b));
-            let summation = heuristic_values
-                .into_iter()
-                .map(|value| value - smallest_value + 0.1)
-                .sum::<f64>();
-
             let mut surgeries_probability = available_surgeries
                 .iter()
                 .map(|surgery| {
@@ -183,6 +151,10 @@ impl Ant {
                 .iter()
                 .map(|value| value.1)
                 .fold(f64::INFINITY, |a, b| a.min(b));
+            let summation = surgeries_probability
+                .iter()
+                .map(|value| value.1 - smallest_value + 0.1)
+                .sum::<f64>();
             surgeries_probability.iter_mut().for_each(|value| {
                 value.1 = (value.1 - smallest_value + 0.1) / summation;
             });
