@@ -17,7 +17,7 @@ use structopt::StructOpt;
 )]
 struct Opt {
     /// Number of executions of ACO.
-    #[structopt(short = "n", long = "n_executions", default_value = "5")]
+    #[structopt(short = "N", long = "n_executions", default_value = "5")]
     n_executions: usize,
 
     /// An instance csv file.
