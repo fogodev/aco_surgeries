@@ -71,6 +71,10 @@ struct Opt {
     /// Flag to save or not durations on .dat file.
     #[structopt(short = "s", long = "save_durations")]
     should_save_durations: bool,
+
+    /// Target value to stop iterations
+    #[structopt(short = "T", long = "target", default_value = "0.0")]
+    target: f64,
 }
 
 fn main() {
@@ -90,6 +94,7 @@ fn main() {
     let ants_count = opt.ants_count;
     let threads_count = opt.threads_count;
     let should_save_durations = opt.should_save_durations;
+    let target = opt.target;
 
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -126,6 +131,7 @@ fn main() {
             evaporation,
             max_rounds,
             max_rounds_improv,
+            target,
         );
         if result < best_result {
             best_result = result;

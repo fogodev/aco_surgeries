@@ -33,6 +33,7 @@ impl Solver {
         pheromone_evaporation_rate: f64,
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
+        target: f64,
     ) -> (f64, u32, Vec<(Week, f64)>, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
@@ -58,7 +59,13 @@ impl Solver {
         let mut best_objective_function_result = f64::INFINITY;
         let mut best_objective_function_round = 0;
         let mut best_scheduling = Vec::new();
-        for round in 1..(max_rounds_count + 1) {
+        let range = if target != 0.0 {
+            1..(u32::MAX)
+        } else {
+            1..(max_rounds_count + 1)
+        };
+
+        for round in range {
             let (objective_function_result, scheduling, elapsed_time) =
                 solver.ant_colony.round(round);
 
@@ -73,7 +80,13 @@ impl Solver {
                 best_objective_function_round = round;
                 best_scheduling = scheduling;
             }
-            if round - best_objective_function_round > max_rounds_without_improvement {
+            if target == 0.0
+                && round - best_objective_function_round > max_rounds_without_improvement
+            {
+                break;
+            }
+
+            if objective_function_result <= target {
                 break;
             }
         }
