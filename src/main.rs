@@ -89,6 +89,7 @@ fn main() {
     let beta = opt.beta;
     let ants_count = opt.ants_count;
     let threads_count = opt.threads_count;
+    let should_save_durations = opt.should_save_durations;
 
     let max_days_waiting = [(1, 3), (2, 15), (3, 60), (4, 365)]
         .iter()
@@ -163,8 +164,9 @@ fn main() {
             .sqrt()
     );
 
-    save_durations(instance_file, durations, ants_count, threads_count);
-
+    if should_save_durations {
+        save_durations(instance_file, durations, ants_count, threads_count);
+    }
     schedule_to_csv(instance_file, best_scheduling);
 }
 
