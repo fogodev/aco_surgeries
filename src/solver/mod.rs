@@ -34,6 +34,7 @@ impl Solver {
         max_rounds_count: u32,
         max_rounds_without_improvement: u32,
         target: f64,
+        intensify_probability: f64,
     ) -> (f64, u32, Vec<(Week, f64)>, Duration) {
         let (surgeries, surgeons_ids) = Self::load_from_csv(instance_filename);
 
@@ -51,6 +52,7 @@ impl Solver {
                 surgeries,
                 max_days_waiting,
                 priority_penalties,
+                intensify_probability,
             ),
         };
 

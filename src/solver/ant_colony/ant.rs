@@ -7,7 +7,7 @@ use std::sync::{Arc, Weak};
 use crate::solver::surgeon::SurgeonID;
 use crate::solver::surgery::{DaysWaiting, Priority, Surgery};
 use crate::solver::week::Week;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 
 pub struct AntFindSolutionData {
     pub pheromones: Weak<HashMap<(Surgery, Surgery), f64>>,
@@ -30,6 +30,7 @@ pub struct Ant {
     max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
     priority_penalties: Arc<HashMap<Priority, u32>>,
     random_number_generator: SmallRng,
+    intensify_probability: f64,
     receive_work: Receiver<Option<AntFindSolutionData>>,
     send_solution: Sender<AntSolution>,
 }
@@ -44,6 +45,7 @@ impl Ant {
         surgeons_ids: Arc<Vec<SurgeonID>>,
         max_days_waiting: Arc<HashMap<Priority, DaysWaiting>>,
         priority_penalties: Arc<HashMap<Priority, u32>>,
+        intensify_probability: f64,
         receive_work: Receiver<Option<AntFindSolutionData>>,
         send_solution: Sender<AntSolution>,
     ) -> Self {
@@ -57,6 +59,7 @@ impl Ant {
             max_days_waiting,
             priority_penalties,
             random_number_generator: SmallRng::from_entropy(),
+            intensify_probability,
             receive_work,
             send_solution,
         }
@@ -159,13 +162,31 @@ impl Ant {
                 value.1 = (value.1 - smallest_value + 0.1) / summation;
             });
 
-            let next_surgery = surgeries_probability
-                .choose_weighted(&mut self.random_number_generator, |surgery_probability| {
-                    surgery_probability.1
-                })
-                .unwrap()
-                .0
-                .clone();
+            let next_surgery = if self
+                .random_number_generator
+                .gen_bool(self.intensify_probability)
+            {
+                let mut biggest_probability_index = 0;
+                let mut biggest_probability = -f64::INFINITY;
+                surgeries_probability.iter().enumerate().for_each(
+                    |(index, (_surgery, probability))| {
+                        if *probability > biggest_probability {
+                            biggest_probability = *probability;
+                            biggest_probability_index = index;
+                        }
+                    },
+                );
+
+                surgeries_probability[biggest_probability_index].0.clone()
+            } else {
+                surgeries_probability
+                    .choose_weighted(&mut self.random_number_generator, |surgery_probability| {
+                        surgery_probability.1
+                    })
+                    .unwrap()
+                    .0
+                    .clone()
+            };
 
             path.push((inner_current_surgery, next_surgery.clone()));
             inner_current_week.schedule_surgery(next_surgery.clone());

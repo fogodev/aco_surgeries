@@ -41,6 +41,7 @@ impl AntColony {
         surgeries_bin: HashSet<Surgery>,
         max_days_waiting: HashMap<Priority, DaysWaiting>,
         priority_penalties: HashMap<Priority, u32>,
+        intensify_probability: f64,
     ) -> Self {
         if surgeries_bin.is_empty() {
             panic!("Unable to solve for a empty set of surgeries!");
@@ -70,6 +71,7 @@ impl AntColony {
                             surgeons_ids,
                             max_days_waiting,
                             priority_penalties,
+                            intensify_probability,
                             receive_in_ant,
                             send_ant_response,
                         )
